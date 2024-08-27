@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Item Page</title>
+    <link rel="stylesheet" type="text/css" href="../css/prod_stylesheet.css">
+</head>
+
+<body>
+
+    <h2>Available Items</h2>
+    <table id="itemsTable" border="1">
+        <tr>
+            <th>Item ID</th>
+            <th>Item Name</th>
+            <th>Category ID</th>
+            <th>Quantity</th>
+        </tr>
+    </table>
+    
+    <!-- Display result -->
+    <div id="result"></div>
+
+    <!-- Message container -->
+    <div id="messageContainer"></div>
+
+    <!-- Form for uploading JSON file -->
+    <form id="uploadForm" enctype="multipart/form-data">
+        <label for="jsonFileInput">Choose a JSON file:</label>
+        <input type="file" name="jsonFile" id="jsonFileInput" accept=".json">
+        <br>
+        <input type="button" value="Upload JSON" onclick="handleFileUpload()">
+    </form>
+
+    <br><br><br>
+
+    <!-- Refresh Inventory button -->
+    <button onclick="refreshInventory()">Refresh Inventory</button>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // Fetch and display existing items when the page is loaded
+            fetchExistingItems();
+        });
+
+        // Function to fetch and display existing items
+        function fetchExistingItems() {
+            fetch('http://localhost/final_web/php/get_items.php')
+
+                .then(response => response.json())
+                .then(data => {
+                    displayItems(data.items);
+                })
+                .catch(error => {
+                    console.error('Error fetching items:', error);
+                });
+        }
+
+        // Function to display items in the items table
+        function displayItems(items) {
+    const itemsTable = document.getElementById('itemsTable');
+    itemsTable.innerHTML = '<tr><th>Item ID</th><th>Item Name</th><th>Category ID</th><th>Quantity</th></tr>';
+
+    if (items && Array.isArray(items)) {
+        items.forEach(item => {
+            const row = itemsTable.insertRow(-1);
+            const idCell = row.insertCell(0);
+            const nameCell = row.insertCell(1);
+            const categoryCell = row.insertCell(2);
+            const quantityCell = row.insertCell(3);
+
+            idCell.textContent = item.item_id;
+            nameCell.textContent = item.item_name;
+            categoryCell.textContent = item.category_id;
+            quantityCell.textContent = item.quantity; // Ensure this field is populated
+        });
+    } else {
+        console.error('Items is undefined or not an array:', items);
+    }
+}
+
+
+
+        // Function to refresh inventory
+        function refreshInventory() {
+            fetch('http://localhost/final_web/php/load_items.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        showMessage(data.message);
+                    } else if (data.error) {
+                        showMessage(data.error);
+                    } else {
+                        displayItems(data.items);
+                        showMessage('Inventory refreshed successfully!');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error refreshing inventory:', error);
+                    showMessage('Error refreshing inventory. Please try again.');
+                });
+        }
+
+        // Function to handle file input change for uploading JSON
+        function handleFileUpload() {
+            const fileInput = document.getElementById('jsonFileInput');
+            const file = fileInput.files[0];
+
+            if (file) {
+                const formData = new FormData();
+                formData.append('jsonFile', file);
+
+                fetch('/php/upload_json.php', {
+                    method: 'POST',
+                    body: formData,
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.message) {
+                            showMessage(data.message);
+                        } else if (data.error) {
+                            showMessage(data.error);
+                        } else {
+                            showMessage('JSON file uploaded successfully!');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error uploading JSON file:', error);
+                        showMessage('Error uploading JSON file. Please try again.');
+                    });
+            } else {
+                showMessage('Invalid file upload or missing file.');
+            }
+        }
+
+        // Function to show messages
+        function showMessage(message) {
+            const messageContainer = document.getElementById('messageContainer');
+            messageContainer.textContent = message;
+
+            setTimeout(() => {
+                messageContainer.textContent = '';
+            }, 3000);
+        }
+    </script>
+
+</body>
+
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 800px;
+        }
+    </style>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+</head>
+
+<body>
+    <div id="map"></div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            mapStart();
+        });
+
+        function mapStart() {
+            var initialCoordinates = [38.250271, 21.738752];
+            var initialZoomLevel = 13;
+
+            var map = L.map('map').setView(initialCoordinates, initialZoomLevel);
+            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(map);
+
+            var marker = L.marker(initialCoordinates, { draggable: true }).addTo(map);
+
+            marker.on('dragend', function (event) {
+                var newPosition = marker.getLatLng();
+                console.log('New Coordinates:', newPosition.lat, newPosition.lng);
+
+                // Send the new coordinates to your server
+                updateDatabase(newPosition.lat, newPosition.lng);
+            });
+
+            marker.bindPopup("<b>Storage</b><br>This is a draggable storage marker.").openPopup();
+        }
+
+        function updateDatabase(lat, lng) {
+            // Use fetch to send the new coordinates to your server
+            fetch('http://localhost/final_web/coordinates.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ stor_lat: lat, stor_long: lng }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Database updated:', data);
+            })
+            .catch(error => {
+                console.error('Error updating database:', error);
+            });
+        }
+    </script>
+</body>
+
+</html>
