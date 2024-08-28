@@ -22,13 +22,14 @@ if (!$con) {
     exit;
 }
 
-$sql = "SELECT item_id, item_name, category_id FROM items"; // Adjusted query
-$result = $con->query($sql);
+// Execute the SQL query
+$sql = "SELECT * FROM items";
+$result = mysqli_query($con, $sql);
 
 $items = [];
 
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
+if ($result && mysqli_num_rows($result) > 0) {
+    while ($row = mysqli_fetch_assoc($result)) {
         $items[] = $row;
     }
 }
@@ -39,5 +40,6 @@ if (empty($items)) {
     echo json_encode(['items' => $items]);
 }
 
-$con->close();
+// Close the database connection
+mysqli_close($con);
 ?>

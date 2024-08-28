@@ -2,90 +2,75 @@
 session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Content-Type: application/json");
 
-// Database connection
 $con = mysqli_connect("localhost", "root", "", "finaldb");
 
 if (!$con) {
-    die("Connection failed: " . mysqli_connect_error());
+    echo json_encode(['error' => "Connection failed: " . mysqli_connect_error()]);
+    exit;
 }
 
-echo "Connected successfully";
-
-// Load JSON data from file
 $jsonUrl = 'http://usidas.ceid.upatras.gr/web/2023/export.php';
 $jsonData = file_get_contents($jsonUrl);
 
 if ($jsonData === false) {
-    die('Failed to fetch JSON data from the URL');
+    echo json_encode(['error' => 'Failed to fetch JSON data from the URL']);
+    exit;
 }
 
-// Decode JSON data into PHP array
 $data = json_decode($jsonData, true);
 
-// Define the SQL query to insert data into the item_categories table
-$insert_item_category_query = "INSERT INTO item_categories (cat_id, cat_name) VALUES (?, ?)";
+if ($data === null) {
+    echo json_encode(['error' => 'Failed to decode JSON data']);
+    exit;
+}
 
-// Prepare the category statement
+$insert_item_category_query = "INSERT INTO item_categories (cat_id, cat_name) VALUES (?, ?)";
 $stmt_category = $con->prepare($insert_item_category_query);
 
-// Check if preparing the category statement succeeded
 if ($stmt_category) {
-    try {
-        // Iterate over the categories in the JSON data
-        foreach ($data['categories'] as $category) {
-            // Bind parameters for the category statement
+    foreach ($data['categories'] as $category) {
+        if (!empty($category['id']) && !empty($category['category_name'])) {
             $stmt_category->bind_param("is", $category['id'], $category['category_name']);
-
-            // Execute the category statement
             $stmt_category->execute();
         }
-
-        // Close the category statement
-        $stmt_category->close();
+    }
+    $stmt_category->close();
     
-        // Define the SQL query to insert data into the items table
-        $insert_item_query = "INSERT INTO items (item_id, item_name, category_id) VALUES (?, ?, ?)";
+    $insert_item_query = "INSERT INTO items (item_id, item_name, category_id) VALUES (?, ?, ?)";
+    $insert_item_detail_query = "INSERT INTO item_details (it_id, detail_name, detail_value) VALUES (?, ?, ?)";
+    
+    $stmt_item = $con->prepare($insert_item_query);
+    $stmt_detail = $con->prepare($insert_item_detail_query);
 
-        // Define the SQL query to insert data into the item_details table
-        $insert_item_detail_query = "INSERT INTO item_details (it_id, detail_name, detail_value) VALUES (?, ?, ?)";
-
-        // Prepare statements
-        $stmt_item = $con->prepare($insert_item_query);
-        $stmt_detail = $con->prepare($insert_item_detail_query);
-
-        // Check if preparing statements succeeded
-        if ($stmt_item && $stmt_detail) {
-            // Iterate over the items in the JSON data
-            foreach ($data['items'] as $item) {
-                // Bind parameters for the item statement
+    if ($stmt_item && $stmt_detail) {
+        foreach ($data['items'] as $item) {
+            if (!empty($item['id']) && !empty($item['name']) && !empty($item['category'])) {
                 $stmt_item->bind_param("isi", $item['id'], $item['name'], $item['category']);
-
-                // Execute the item statement
                 $stmt_item->execute();
 
-                // Iterate over the item details in the JSON data
                 foreach ($item['details'] as $detail) {
-                    // Bind parameters for the detail statement
-                    $stmt_detail->bind_param("iss", $item['id'], $detail['detail_name'], $detail['detail_value']);
-                    $stmt_detail->execute();
+                    if (!empty($detail['detail_name']) && !empty($detail['detail_value'])) {
+                        $stmt_detail->bind_param("iss", $item['id'], $detail['detail_name'], $detail['detail_value']);
+                        $stmt_detail->execute();
+                    }
                 }
             }
-
-            echo "Data inserted successfully.";
-        } else {
-            echo "Prepare statement error: " . $con->error;
         }
 
-        // Close statements and connection
-        $stmt_item->close();
-        $stmt_detail->close();
-        $con->close();
-    } catch (Exception $e) {
-        echo "An error occurred: " . $e->getMessage();
-        // Log the error to a file or database for further investigation
+        echo json_encode(['message' => 'Data inserted successfully.']);
+    } else {
+        echo json_encode(['error' => 'Prepare statement error: ' . $con->error]);
     }
+
+    $stmt_item->close();
+    $stmt_detail->close();
+    $con->close();
 } else {
-    echo "Prepare statement error: " . $con->error;
+    echo json_encode(['error' => 'Prepare statement error: ' . $con->error]);
 }
 ?>
