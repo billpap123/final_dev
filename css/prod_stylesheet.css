@@ -1,67 +1,109 @@
+/* Reset some basic elements */
+body, h2, p, table, th, td, form {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+}
+
 body {
-    font-family: 'Arial', sans-serif;
-    margin: 20px;
+    background-color: #f4f4f4;
+    color: #333;
+    padding: 20px;
+}
+
+/* Navigation bar */
+nav {
+    background-color: #333;
+    color: white;
+    padding: 10px;
+}
+
+nav a {
+    color: white;
+    margin: 0 15px;
+    text-decoration: none;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+/* Main section */
+section {
+    background-color: white;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 5px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
 }
 
 h2 {
+    margin-bottom: 20px;
+    color: #444;
+}
+
+/* Table styles */
+.table-container {
+    margin-bottom: 20px;
+}
+
+#itemsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+#itemsTable th, #itemsTable td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+#itemsTable th {
+    background-color: #f2f2f2;
     color: #333;
 }
 
-.table-container {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    overflow-x: auto;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    background-color: #f9f9f9;
+/* Button styles */
+button, input[type="button"] {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 5px;
 }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
+button:hover, input[type="button"]:hover {
+    background-color: #218838;
 }
 
-th, td {
-    padding: 12px 15px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
+/* File upload */
+#uploadForm label {
+    margin-right: 10px;
 }
 
-th {
-    background-color: #f2f2f2;
-}
-
-td {
-    background-color: #fff;
-}
-
+/* Message container */
 #messageContainer {
     margin-top: 10px;
-    color: #d9534f;
+    color: #ff0000;
 }
 
-form {
-    margin-top: 20px;
-}
-
-label {
-    display: block;
-    margin-bottom: 5px;
-}
-
-input[type="file"] {
-    margin-bottom: 10px;
-}
-
-button {
+/* Expandable row styles */
+.expandable-row .expanded-content {
     padding: 10px;
-    background-color: #5bc0de;
-    color: #fff;
+    background-color: #f9f9f9;
+    border-top: 1px solid #ddd;
+}
+
+.expand-btn {
+    background-color: transparent;
     border: none;
     cursor: pointer;
+    font-size: 16px;
+    color: #007bff;
 }
 
-button:hover {
-    background-color: #46b8da;
+.expand-btn:hover {
+    color: #0056b3;
 }

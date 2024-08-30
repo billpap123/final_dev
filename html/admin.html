@@ -7,10 +7,25 @@
     <link rel="stylesheet" href="../css/admin_stylesheet.css">
     
     <script>
-        function logout(){
-            sessionStorage.clear(); //clear session data
-            localStorage.clear();
-            window.location.href = 'loginpage.html'; // Ensure loginpage.html is in the html folder
+        function logout() {
+            // Make an asynchronous request to the server-side logout script
+            fetch('../php/logout.php', {
+                method: 'GET', // Assuming GET method for logout, adjust if needed
+                credentials: 'include' // Include cookies to ensure server session is terminated
+            }).then(response => {
+                if (response.ok) {
+                    // Clear client-side storage
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    
+                    // Redirect to login page
+                    window.location.href = 'login.html';
+                } else {
+                    console.error('Logout failed');
+                }
+            }).catch(error => {
+                console.error('Error during logout:', error);
+            });
         }
         
         function home() {

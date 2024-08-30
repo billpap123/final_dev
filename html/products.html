@@ -6,255 +6,308 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Item Page</title>
     <link rel="stylesheet" type="text/css" href="../css/prod_stylesheet.css">
-    <style>
-        .expandable-row {
-            display: none;
-        }
-
-        .expanded-content {
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-top: 1px solid #ddd;
-        }
-    </style>
 </head>
 
 <body>
+    <nav>
+        <a href="#" onclick="home()">Home</a>
+        <a href="#" onclick="users()">Users</a>
+        <a href="#" onclick="products()">Products</a>
+        <a href="#" onclick="settings()">Settings</a>
+        <a href="#" onclick="posts()">Posts</a>
+        <a href="#" onclick="map()">Map</a>
+    </nav>
 
-    <h2 id="top">Available Items</h2>
-    <div class="table-container">
-        <form id="itemsForm">
-            <table id="itemsTable">
-                <thead>
-                    <tr>
-                        <th>Item ID</th>
-                        <th>Item Name</th>
-                        <th>Category</th>
-                        <th>Quantity</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Rows will be dynamically inserted here -->
-                </tbody>
-            </table>
-            <button type="button" onclick="saveChanges()">Save Changes</button>
+    <section>
+        <h2 id="top">Available Items</h2>
+
+        <!-- Filter Options -->
+        <div id="filters">
+            <label for="categorySelect">Category:</label>
+            <select id="categorySelect" multiple>
+                <!-- Categories will be populated here -->
+            </select>
+
+            <label for="availabilityCheckbox">
+                <input type="checkbox" id="availabilityCheckbox">
+                Only Available
+            </label>
+
+            <button type="button" onclick="applyFilters()">Apply Filters</button>
+        </div>
+
+        <div class="table-container">
+            <form id="itemsForm">
+                <table id="itemsTable">
+                    <thead>
+                        <tr>
+                            <th>Item ID</th>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            <th>Quantity</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Rows will be dynamically inserted here -->
+                    </tbody>
+                </table>
+                <button type="button" onclick="saveChanges()">Save Changes</button>
+            </form>
+        </div>
+
+        <!-- Display result -->
+        <div id="result"></div>
+
+        <!-- Message container -->
+        <div id="messageContainer"></div>
+
+        <!-- Form for uploading JSON file -->
+        <form id="uploadForm" enctype="multipart/form-data">
+            <label for="jsonFileInput">Choose a JSON file:</label>
+            <input type="file" name="jsonFile" id="jsonFileInput" accept=".json">
+            <br>
+            <input type="button" value="Upload JSON" onclick="handleFileUpload()">
         </form>
-    </div>
 
-    <!-- Display result -->
-    <div id="result"></div>
+        <br><br><br>
 
-    <!-- Message container -->
-    <div id="messageContainer"></div>
+        <!-- Refresh Inventory button -->
+        <button onclick="refreshInventory()">Refresh Inventory</button>
 
-    <!-- Form for uploading JSON file -->
-    <form id="uploadForm" enctype="multipart/form-data">
-        <label for="jsonFileInput">Choose a JSON file:</label>
-        <input type="file" name="jsonFile" id="jsonFileInput" accept=".json">
-        <br>
-        <input type="button" value="Upload JSON" onclick="handleFileUpload()">
-    </form>
-
-    <br><br><br>
-
-    <!-- Refresh Inventory button -->
-    <button onclick="refreshInventory()">Refresh Inventory</button>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            fetchExistingItems();
-            addEnterKeyListener();
-        });
-
-        function fetchExistingItems() {
-            fetch('http://localhost/final_web/php/get_items.php')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.items) {
-                        displayItems(data.items);
-                    } else {
-                        console.error('No items found:', data);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching items:', error);
-                });
-        }
-
-        function displayItems(items) {
-            const itemsTable = document.getElementById('itemsTable').getElementsByTagName('tbody')[0];
-            itemsTable.innerHTML = '';
-
-            if (items && Array.isArray(items)) {
-                items.forEach(item => {
-                    const row = itemsTable.insertRow();
-                    const idCell = row.insertCell(0);
-                    const nameCell = row.insertCell(1);
-                    const categoryCell = row.insertCell(2);
-                    const quantityCell = row.insertCell(3);
-                    const expandCell = row.insertCell(4);
-
-                    idCell.innerHTML = `<input type="hidden" name="item_id[]" value="${item.item_id}">${item.item_id}`;
-                    nameCell.textContent = item.item_name;
-                    categoryCell.innerHTML = `<input type="text" name="category[]" value="${item.category_id}">`;
-                    quantityCell.innerHTML = `<input type="number" name="quantity[]" value="${item.quantity}">`;
-
-                    expandCell.innerHTML = `<button type="button" class="expand-btn" onclick="toggleRow(this)">▼</button>`;
-                    const expandableRow = itemsTable.insertRow();
-                    expandableRow.classList.add('expandable-row');
-                    const expandableCell = expandableRow.insertCell(0);
-                    expandableCell.colSpan = 5;
-                    expandableCell.innerHTML = `<div class="expanded-content">
-                        <p>Additional information for ${item.item_name}.</p>
-                    </div>`;
-                });
-
-                // Re-apply Enter key listener to newly added input fields
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                fetchCategories();
+                fetchExistingItems(); // Initial load of items
                 addEnterKeyListener();
-            } else {
-                console.error('Items is undefined or not an array:', items);
-            }
-        }
-
-        function addEnterKeyListener() {
-            // Add keydown event listener to input fields in the table
-            const inputs = document.querySelectorAll('#itemsTable input[type="text"], #itemsTable input[type="number"]');
-            inputs.forEach(input => {
-                input.addEventListener('keydown', function(event) {
-                    if (event.key === 'Enter') {
-                        event.preventDefault(); // Prevent the default form submission
-                        saveChanges(); // Save the changes
-                        window.location.reload(); // Refresh the page after saving
-                    }
-                });
             });
-        }
 
-        function saveChanges() {
-    const formData = new FormData(document.getElementById('itemsForm'));
-
-    // Convert FormData to a plain object for debugging
-    const object = {};
-    formData.forEach((value, key) => {
-        if (!object[key]) {
-            object[key] = [];
-        }
-        object[key].push(value);
-    });
-
-    // Clean up the data to remove empty values and validate
-    const cleanedData = {
-        item_id: [],
-        category: [],
-        quantity: []
-    };
-
-    object['item_id[]'].forEach((itemId, index) => {
-        const category = object['category[]'][index];
-        const quantity = object['quantity[]'][index];
-
-        if (itemId && category && !isNaN(quantity) && quantity.trim() !== '') {
-            cleanedData.item_id.push(itemId);
-            cleanedData.category.push(category);
-            cleanedData.quantity.push(quantity);
-        }
-    });
-
-    console.log('Cleaned FormData:', cleanedData); // Debug: Print the cleaned data being sent
-
-    const cleanedFormData = new FormData();
-    cleanedData.item_id.forEach((id, index) => {
-        cleanedFormData.append('item_id[]', id);
-        cleanedFormData.append('category[]', cleanedData.category[index]);
-        cleanedFormData.append('quantity[]', cleanedData.quantity[index]);
-    });
-
-    fetch('http://localhost/final_web/php/update_items.php', {
-        method: 'POST',
-        body: cleanedFormData,
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.text().then(text => {
-                throw new Error(`Network response was not ok: ${text}`);
-            });
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            alert('Changes saved successfully!');
-            fetchExistingItems(); // Refresh the table after saving changes
-        } else {
-            alert('Error saving changes: ' + data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred. Please try again.'); // Display error message
-    });
-}
-
-        function refreshInventory() {
-            fetch('http://localhost/final_web/php/load_items.php')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.message) {
-                        showMessage(data.message);
-                    } else if (data.error) {
-                        showMessage(data.error);
-                    } else {
-                        displayItems(data.items);
-                        showMessage('Inventory refreshed successfully!');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error refreshing inventory:', error);
-                    showMessage('Error refreshing inventory. Please try again.');
-                });
-        }
-
-        function handleFileUpload() {
-            const fileInput = document.getElementById('jsonFileInput');
-            const file = fileInput.files[0];
-
-            if (file) {
-                const formData = new FormData();
-                formData.append('jsonFile', file);
-
-                fetch('/php/upload_json.php', {
-                    method: 'POST',
-                    body: formData,
-                })
+            function fetchCategories() {
+                fetch('http://localhost/final_web/php/get_categories.php')
                     .then(response => response.json())
+                    .then(data => {
+                        if (data.categories) {
+                            populateCategorySelect(data.categories);
+                        } else {
+                            console.error('No categories found:', data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching categories:', error);
+                    });
+            }
+
+            function populateCategorySelect(categories) {
+                const categorySelect = document.getElementById('categorySelect');
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.cat_name; // Set value to cat_name
+                    option.textContent = category.cat_name; // Set displayed text to cat_name
+                    categorySelect.appendChild(option);
+                });
+            }
+
+            function fetchExistingItems() {
+                const selectedCategories = Array.from(document.getElementById('categorySelect').selectedOptions).map(option => option.value);
+                const onlyAvailable = document.getElementById('availabilityCheckbox').checked;
+
+                const queryParams = new URLSearchParams({
+                    categories: JSON.stringify(selectedCategories),
+                    only_available: onlyAvailable
+                }).toString();
+
+                fetch(`http://localhost/final_web/php/get_items.php?${queryParams}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.items) {
+                            displayItems(data.items);
+                        } else {
+                            console.error('No items found:', data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching items:', error);
+                    });
+            }
+
+
+            function applyFilters() {
+                fetchExistingItems(); // Refetch items with applied filters
+            }
+
+            function displayItems(items) {
+                const itemsTable = document.getElementById('itemsTable').getElementsByTagName('tbody')[0];
+                itemsTable.innerHTML = '';
+
+                if (items && Array.isArray(items)) {
+                    items.forEach(item => {
+                        const row = itemsTable.insertRow();
+                        const idCell = row.insertCell(0);
+                        const nameCell = row.insertCell(1);
+                        const categoryCell = row.insertCell(2);
+                        const quantityCell = row.insertCell(3);
+
+                        idCell.innerHTML = `<input type="hidden" name="item_id[]" value="${item.item_id}">${item.item_id}`;
+                        nameCell.textContent = item.item_name;
+                        categoryCell.textContent = item.category_name;
+                        quantityCell.innerHTML = `<input type="number" name="quantity[]" value="${item.quantity}">`;
+                    });
+
+                    // Re-apply Enter key listener to newly added input fields
+                    addEnterKeyListener();
+                } else {
+                    console.error('Items is undefined or not an array:', items);
+                }
+            }
+
+            function addEnterKeyListener() {
+                // Add keydown event listener to input fields in the table
+                const inputs = document.querySelectorAll('#itemsTable input[type="number"]');
+                inputs.forEach(input => {
+                    input.addEventListener('keydown', function (event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault(); // Prevent the default form submission
+                            saveChanges(); // Save the changes
+                            window.location.reload(); // Refresh the page after saving
+                        }
+                    });
+                });
+            }
+
+            function saveChanges() {
+                const formData = new FormData(document.getElementById('itemsForm'));
+
+                // Convert FormData to a plain object for debugging
+                const object = {};
+                formData.forEach((value, key) => {
+                    if (!object[key]) {
+                        object[key] = [];
+                    }
+                    object[key].push(value);
+                });
+
+                // Clean up the data to remove empty values and validate
+                const cleanedData = {
+                    item_id: [],
+                    quantity: []
+                };
+
+                object['item_id[]'].forEach((itemId, index) => {
+                    const quantity = object['quantity[]'][index];
+
+                    if (itemId && !isNaN(quantity) && quantity.trim() !== '') {
+                        cleanedData.item_id.push(itemId);
+                        cleanedData.quantity.push(quantity);
+                    }
+                });
+
+                console.log('Cleaned FormData:', cleanedData); // Debug: Print the cleaned data being sent
+
+                const cleanedFormData = new FormData();
+                cleanedData.item_id.forEach((id, index) => {
+                    cleanedFormData.append('item_id[]', id);
+                    cleanedFormData.append('quantity[]', cleanedData.quantity[index]);
+                });
+
+                fetch('http://localhost/final_web/php/update_items.php', {
+                    method: 'POST',
+                    body: cleanedFormData,
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                throw new Error(`Network response was not ok: ${text}`);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            alert('Changes saved successfully!');
+                            fetchExistingItems(); // Refresh the table after saving changes
+                        } else {
+                            alert('Error saving changes: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.'); // Display error message
+                    });
+            }
+
+            function refreshInventory() {
+                fetch('http://localhost/final_web/php/load_items.php')
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.text().then(text => {
+                                throw new Error(`Network response was not ok: ${text}`);
+                            });
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.message) {
                             showMessage(data.message);
                         } else if (data.error) {
                             showMessage(data.error);
                         } else {
-                            showMessage('JSON file uploaded successfully!');
+                            displayItems(data.items);
+                            showMessage('Inventory refreshed successfully!');
                         }
                     })
                     .catch(error => {
-                        console.error('Error uploading JSON file:', error);
-                        showMessage('Error uploading JSON file. Please try again.');
+                        console.error('Error refreshing inventory:', error);
+                        showMessage('Error refreshing inventory. Please try again.');
                     });
-            } else {
-                showMessage('Invalid file upload or missing file.');
             }
-        }
 
-        function showMessage(message) {
-            const messageContainer = document.getElementById('messageContainer');
-            messageContainer.textContent = message;
+            function handleFileUpload() {
+                const fileInput = document.getElementById('jsonFileInput');
+                const file = fileInput.files[0];
 
-            setTimeout(() => {
-                messageContainer.textContent = '';
-            }, 3000);
-        }
-    </script>
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('jsonFile', file);
 
+                    fetch('/php/upload_json.php', {
+                        method: 'POST',
+                        body: formData,
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    throw new Error(`Network response was not ok: ${text}`);
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.message) {
+                                showMessage(data.message);
+                            } else if (data.error) {
+                                showMessage(data.error);
+                            } else {
+                                showMessage('JSON file uploaded successfully!');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error uploading JSON file:', error);
+                            showMessage('Error uploading JSON file. Please try again.');
+                        });
+                } else {
+                    showMessage('Invalid file upload or missing file.');
+                }
+            }
+
+            function showMessage(message) {
+                const messageContainer = document.getElementById('messageContainer');
+                messageContainer.textContent = message;
+
+                setTimeout(() => {
+                    messageContainer.textContent = '';
+                }, 3000);
+            }
+        </script>
+    </section>
 </body>
 
 </html>
