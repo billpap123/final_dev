@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <h2>User Registration</h2>
+    <form action="../php/register.php" method="post">
+        <label for="username">Username:</label><br>
+        <input type="text" id="username" name="username" required maxlength="30"><br><br>
+        
+        <label for="password">Password:</label><br>
+        <input type="password" id="password" name="password" required maxlength="255"><br><br>
+        
+        <label for="fullname">Full Name:</label><br>
+        <input type="text" id="fullname" name="fullname" required maxlength="50"><br><br>
+        
+        <label for="phone_number">Phone Number:</label><br>
+        <input type="tel" id="phone_number" name="phone_number" required maxlength="20"><br><br>
+        
+        <label for="user_type">User Type:</label><br>
+        <select id="user_type" name="user_type" required>
+            <option value="Admin">Admin</option>
+            <option value="Volunteer">Volunteer</option>
+            <option value="Civilian">Civilian</option>
+        </select><br><br>
+        
+        <label for="location">Location (Latitude, Longitude):</label><br>
+        <input type="text" id="location" name="location" required placeholder="Automatically detected" readonly><br><br>
+        
+        <input type="submit" value="Register">
+    </form>
+    
+    <p>Already have an account? <a href="login.html">Log in here</a></p>
+
+    <script>
+        // Automatically get and set the user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                var latitude = position.coords.latitude;
+                var longitude = position.coords.longitude;
+                document.getElementById('location').value = latitude + ', ' + longitude;
+            }, function(error) {
+                console.error("Error getting location: ", error);
+                alert("Unable to retrieve your location. Please manually enter it.");
+            });
+        } else {
+            alert("Geolocation is not supported by this browser. Please manually enter your location.");
+        }
+    </script>
+</body>
+</html>
