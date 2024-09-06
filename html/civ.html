@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civilian Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="../css/civilian_stylesheet.css">
+</head>
+
+<body>
+    <nav>
+        <a href="#" onclick="showSection('requestSection')">Request an Item</a>
+        <a href="#" onclick="showSection('offerSection')">Manage Offers</a>
+        <a href="#" onclick="viewAnnouncements()">Announcements</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </nav>
+
+    <section id="requestSection">
+        <h2>Request an Item</h2>
+
+        <!-- Search and Category Selection -->
+        <div>
+            <label for="itemSearch">Search for an item:</label>
+            <input type="text" id="itemSearch" oninput="autocompleteItems()">
+
+            <label for="categorySelect">or Select Category:</label>
+            <select id="categorySelect" onchange="loadItemsByCategory()">
+                <option value="">Select Category</option>
+                <!-- Categories will be dynamically populated -->
+            </select>
+
+            <label for="itemSelect">Select Item:</label>
+            <select id="itemSelect">
+                <!-- Items will be dynamically populated -->
+            </select>
+        </div>
+
+        <!-- People Involved -->
+        <div>
+            <label for="peopleCount">Number of People Involved:</label>
+            <input type="number" id="peopleCount" min="1">
+        </div>
+
+        <!-- Submit Request -->
+        <button onclick="submitRequest()">Submit Request</button>
+
+        <!-- Request Status Message -->
+        <div id="requestMessage"></div>
+
+        <!-- List of Current Requests -->
+        <h3>My Current Requests</h3>
+        <div id="currentRequests">
+            <!-- Current requests will be displayed here -->
+        </div>
+
+        <!-- List of Past Requests -->
+        <h3>My Past Requests</h3>
+        <div id="pastRequests">
+            <!-- Past requests will be displayed here -->
+        </div>
+    </section>
+
+    <section id="offerSection" style="display: none;">
+        <h2>Manage Offers</h2>
+        <!-- Announcements and Offer Management will go here -->
+    </section>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            fetchCategories();
+            loadCurrentRequests();
+            loadPastRequests();
+        });
+
+        function showSection(sectionId) {
+            document.getElementById('requestSection').style.display = 'none';
+            document.getElementById('offerSection').style.display = 'none';
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        function fetchCategories() {
+            fetch('../php/get_categories.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.categories) {
+                        populateCategorySelect(data.categories);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching categories:', error);
+                });
+        }
+
+        function populateCategorySelect(categories) {
+            const categorySelect = document.getElementById('categorySelect');
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.cat_id;
+                option.textContent = category.cat_name;
+                categorySelect.appendChild(option);
+            });
+        }
+
+        function autocompleteItems() {
+            const searchTerm = document.getElementById('itemSearch').value;
+            if (searchTerm.length > 2) {
+                fetch(`../php/search_items.php?query=${searchTerm}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.items) {
+                            populateItemSelect(data.items);
+                        }
+                    });
+            }
+        }
+
+        function loadItemsByCategory() {
+            const categoryId = document.getElementById('categorySelect').value;
+            if (categoryId) {
+                fetch(`../php/get_items_by_category.php?category_id=${categoryId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.items) {
+                            populateItemSelect(data.items);
+                        }
+                    });
+            }
+        }
+
+        function populateItemSelect(items) {
+            const itemSelect = document.getElementById('itemSelect');
+            itemSelect.innerHTML = ''; // Clear previous items
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.item_id;
+                option.textContent = item.item_name;
+                itemSelect.appendChild(option);
+            });
+        }
+
+        function submitRequest() {
+            const itemId = document.getElementById('itemSelect').value;
+            const peopleCount = document.getElementById('peopleCount').value;
+
+            if (itemId && peopleCount > 0) {
+                fetch('../php/submit_request.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ item_id: itemId, people_count: peopleCount }),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById('requestMessage').textContent = 'Request submitted successfully!';
+                            loadCurrentRequests();
+                        } else {
+                            document.getElementById('requestMessage').textContent = 'Error submitting request.';
+                        }
+                    });
+            } else {
+                document.getElementById('requestMessage').textContent = 'Please select an item and specify the number of people.';
+            }
+        }
+
+        function loadCurrentRequests() {
+            fetch('../php/get_current_requests.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.requests) {
+                        displayRequests(data.requests, 'currentRequests');
+                    } else {
+                        document.getElementById('currentRequests').textContent = 'No current requests found.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading current requests:', error);
+                });
+        }
+
+        function displayRequests(requests, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = ''; // Clear previous requests
+
+            if (requests && requests.length > 0) {
+                requests.forEach(request => {
+                    const requestDiv = document.createElement('div');
+                    // Use item_name instead of item_id
+                    requestDiv.textContent = `Item Name: ${request.item_name}, People: ${request.people_count}, Status: ${request.status}, Date Created: ${request.date_created}`;
+                    container.appendChild(requestDiv);
+                });
+            } else {
+                container.textContent = 'No requests found.';
+            }
+        }
+
+        function loadPastRequests() {
+            fetch('../php/get_past_requests.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.requests) {
+                        displayRequests(data.requests, 'pastRequests');
+                    } else {
+                        document.getElementById('pastRequests').textContent = 'No past requests found.';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading past requests:', error);
+                });
+        }
+
+
+        function viewAnnouncements() {
+            // Functionality to view announcements
+        }
+
+        function logout() {
+            // Functionality to log out
+        }
+    </script>
+</body>
+
+</html>

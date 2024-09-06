@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Announcement</title>
+    <link rel="stylesheet" href="../css/admin_stylesheet.css">
+    
+    <script>
+        // JavaScript functions for navigation and form submission
+        function logout() {
+            fetch('../php/logout.php', {
+                method: 'GET',
+                credentials: 'include'
+            }).then(response => {
+                if (response.ok) {
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    window.location.href = 'login.html';
+                } else {
+                    console.error('Logout failed');
+                }
+            }).catch(error => {
+                console.error('Error during logout:', error);
+            });
+        }
+        
+        function home() {
+            window.location.href = 'admin.html';
+        }
+        
+        function map() {
+            window.location.href = 'map.html';
+        }
+        
+        function settings() {
+            window.location.href = 'settings.html';
+        }
+        
+        function products() {
+            window.location.href = 'products.html';
+        }
+        
+        function posts() {
+            window.location.href = 'posts.html';
+        }
+        
+        function users() {
+            window.location.href = 'users.html';
+        }
+
+        function loadItems() {
+            fetch('../php/get_items.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.items) {
+                        populateItemSelect(data.items);
+                    }
+                })
+                .catch(error => console.error('Error fetching items:', error));
+        }
+
+        function populateItemSelect(items) {
+            const itemSelect = document.getElementById('itemSelect');
+            itemSelect.innerHTML = '<option value="">Select Item</option>'; // Clear previous items
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.item_id;
+                option.textContent = item.item_name;
+                itemSelect.appendChild(option);
+            });
+        }
+
+        function submitAnnouncement() {
+            const itemId = document.getElementById('itemSelect').value;
+            const quantityNeeded = document.getElementById('quantityNeeded').value;
+
+            if (itemId && quantityNeeded > 0) {
+                fetch('../php/submit_announcement.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ item_id: itemId, quantity_needed: quantityNeeded }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('announcementMessage').textContent = 'Announcement created successfully!';
+                    } else {
+                        document.getElementById('announcementMessage').textContent = 'Error creating announcement.';
+                    }
+                });
+            } else {
+                document.getElementById('announcementMessage').textContent = 'Please select an item and specify the quantity needed.';
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            loadItems();
+        });
+    </script>
+</head>
+<body>
+
+<header>
+    <h1>Admin Dashboard</h1>
+</header>
+
+<nav>
+    <a href="#" onclick="home()">Home</a>
+    <a href="#" onclick="users()">Users</a>
+    <a href="#" onclick="products()">Products</a>
+    <a href="#" onclick="settings()">Settings</a>
+    <a href="#" onclick="posts()">Posts</a>
+    <a href="#" onclick="map()">Map</a>
+</nav>
+
+<section>
+    <h2>Create Announcement</h2>
+
+    <div>
+        <label for="itemSelect">Select Item:</label>
+        <select id="itemSelect">
+            <!-- Items will be dynamically populated -->
+        </select>
+    </div>
+
+    <div>
+        <label for="quantityNeeded">Quantity Needed:</label>
+        <input type="number" id="quantityNeeded" min="1">
+    </div>
+
+    <button onclick="submitAnnouncement()">Submit Announcement</button>
+
+    <div id="announcementMessage"></div>
+</section>
+
+<footer>
+    &copy; 2023 Admin Dashboard <br><br><br>
+    <button onclick="logout()">Log Out</button>
+</footer>
+
+</body>
+</html>

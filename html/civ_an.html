@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Civilian Announcements</title>
+    <link rel="stylesheet" href="../css/civilian_stylesheet.css">
+</head>
+<body>
+    <nav>
+        <a href="#" onclick="showSection('offerSection')">Offer a Product</a>
+        <a href="#" onclick="showSection('announcementsSection')">View Announcements</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </nav>
+
+    <section id="offerSection" style="display: none;">
+        <h2>Offer a Product</h2>
+        <div>
+            <label for="announcementSelect">Select Announcement:</label>
+            <select id="announcementSelect">
+                <!-- Announcements will be dynamically populated -->
+            </select>
+        </div>
+        <div>
+            <label for="offerQuantity">Quantity Offered:</label>
+            <input type="number" id="offerQuantity" min="1">
+        </div>
+        <button onclick="submitOffer()">Submit Offer</button>
+        <div id="offerMessage"></div>
+    </section>
+
+    <section id="announcementsSection" style="display: none;">
+        <h2>Announcements</h2>
+        <div id="announcementsList">
+            <!-- Announcements will be dynamically populated here -->
+        </div>
+    </section>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            loadAnnouncements();
+        });
+
+        function showSection(sectionId) {
+            document.getElementById('offerSection').style.display = 'none';
+            document.getElementById('announcementsSection').style.display = 'none';
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        function loadAnnouncements() {
+            fetch('../php/get_announcements.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.announcements) {
+                        populateAnnouncementSelect(data.announcements);
+                        displayAnnouncements(data.announcements);
+                    }
+                })
+                .catch(error => console.error('Error fetching announcements:', error));
+        }
+
+        function populateAnnouncementSelect(announcements) {
+            const announcementSelect = document.getElementById('announcementSelect');
+            announcementSelect.innerHTML = '<option value="">Select Announcement</option>';
+            announcements.forEach(announcement => {
+                const option = document.createElement('option');
+                option.value = announcement.announcement_id;
+                option.textContent = `${announcement.item_name} - ${announcement.quantity_needed} needed`;
+                announcementSelect.appendChild(option);
+            });
+        }
+
+        function displayAnnouncements(announcements) {
+            const announcementsList = document.getElementById('announcementsList');
+            announcementsList.innerHTML = '';
+            announcements.forEach(announcement => {
+                const announcementDiv = document.createElement('div');
+                announcementDiv.textContent = `Item: ${announcement.item_name}, Quantity Needed: ${announcement.quantity_needed}, Date Created: ${announcement.date_created}`;
+                announcementsList.appendChild(announcementDiv);
+            });
+        }
+
+        function submitOffer() {
+            const announcementId = document.getElementById('announcementSelect').value;
+            const offerQuantity = document.getElementById('offerQuantity').value;
+
+            if (announcementId && offerQuantity > 0) {
+                fetch('../php/submit_offer.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ announcement_id: announcementId, quantity_offered: offerQuantity }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('offerMessage').textContent = 'Offer submitted successfully!';
+                    } else {
+                        document.getElementById('offerMessage').textContent = 'Error submitting offer.';
+                    }
+                });
+            } else {
+                document.getElementById('offerMessage').textContent = 'Please select an announcement and specify the quantity offered.';
+            }
+        }
+
+        function logout() {
+            fetch('../php/logout.php', {
+                method: 'GET',
+                credentials: 'include'
+            }).then(response => {
+                if (response.ok) {
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    window.location.href = 'login.html';
+                } else {
+                    console.error('Logout failed');
+                }
+            }).catch(error => {
+                console.error('Error during logout:', error);
+            });
+        }
+    </script>
+</body>
+</html>

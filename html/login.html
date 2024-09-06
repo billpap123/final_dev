@@ -3,21 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Page</title>
-    <link rel="stylesheet" href="../css/styles.css"> 
+    <title>Login</title>
+    <link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
-    <h2>Login</h2>
-    <form action="../php/login.php" method="post">
-        <label for="username">Username:</label><br>
-        <input type="text" id="username" name="username" required maxlength="30"><br><br>
+    <div class="container">
+        <header>
+            <h1>Login</h1>
+        </header>
         
-        <label for="password">Password:</label><br>
-        <input type="password" id="password" name="password" required maxlength="255"><br><br>
+        <form id="loginForm" class="login-form">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required placeholder="Enter your username">
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required placeholder="Enter your password">
+
+            <button type="submit">Login</button>
+        </form>
         
-        <input type="submit" value="Log In">
-    </form>
+        <p class="register-link">Don't have an account? <a href="register.html">Register here</a></p>
+    </div>
     
-    <p>Don't have an account? <a href="register.html">Register here</a></p>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function (event) {
+            event.preventDefault(); // Prevent default form submission
+
+            fetch('../php/login.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Handle successful login
+                        if (data.user_type === 'Admin') {
+                            window.location.href = '../html/admin.html';
+                        } else if (data.user_type === 'Volunteer') {
+                            window.location.href = '../html/volunteer.html';
+                        } else {
+                            window.location.href = '../html/civ.html';
+                        }
+                    } else {
+                        // Handle errors
+                        alert(data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        });
+    </script>
 </body>
 </html>

@@ -1,0 +1,120 @@
+/* Reset some default styles */
+body, h2, table, button {
+    margin: 0;
+    padding: 0;
+}
+
+/* Basic styling for the body */
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+
+/* Navigation styling */
+nav {
+    background-color: #333;
+    color: #fff;
+    padding: 10px;
+    text-align: center;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+    padding: 10px 15px;
+    display: inline-block;
+}
+
+nav a:hover {
+    background-color: #575757;
+}
+
+/* Section styling */
+section {
+    margin-top: 20px;
+}
+
+/* Filter options */
+#filters {
+    margin-bottom: 20px;
+}
+
+#filters label {
+    margin-right: 10px;
+}
+
+#filters select {
+    width: 200px;
+    margin-right: 10px;
+}
+
+#filters button {
+    padding: 10px 15px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+#filters button:hover {
+    background-color: #0056b3;
+}
+
+/* Table styling */
+.table-container {
+    margin-top: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #fff;
+}
+
+th, td {
+    padding: 10px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+th {
+    background-color: #f4f4f4;
+}
+
+input[type="number"] {
+    width: 80px;
+}
+
+/* Form styling */
+form {
+    margin-bottom: 20px;
+}
+
+form label {
+    margin-right: 10px;
+}
+
+form input[type="file"] {
+    margin-right: 10px;
+}
+
+/* Message container styling */
+#messageContainer {
+    margin-top: 20px;
+    color: #d9534f;
+}
+
+/* Button styling */
+button {
+    padding: 10px 15px;
+    background-color: #28a745;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #218838;
+}

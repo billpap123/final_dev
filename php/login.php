@@ -8,23 +8,43 @@ $con = mysqli_connect("localhost", "root", "", "finaldb");
 
 // Check connection
 if (!$con) {
-    die("Connection failed: " . mysqli_connect_error());
+    echo json_encode(["error" => "Connection failed: " . mysqli_connect_error()]);
+    exit;
 }
 
 // Handle form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $password = $_POST['password'];
+    // Get the raw POST data
+    $raw_data = file_get_contents("php://input");
+    // Decode the JSON data
+    $data = json_decode($raw_data, true);
+
+    // Debugging output
+    if ($data === null) {
+        echo json_encode(["error" => "Failed to decode JSON"]);
+        exit;
+    }
+
+    $username = $data['username'] ?? null;
+    $password = $data['password'] ?? null;
+
+    // Debugging output
+    if ($username === null || $password === null) {
+        echo json_encode(["error" => "Username or password is missing"]);
+        exit;
+    }
 
     // Prepare and execute the query
     $stmt = $con->prepare("SELECT user_id, password, user_type FROM user WHERE username = ?");
     if (!$stmt) {
-        die("Prepare failed: " . $con->error);
+        echo json_encode(["error" => "Prepare failed: " . $con->error]);
+        exit;
     }
 
     $stmt->bind_param("s", $username);
     if (!$stmt->execute()) {
-        die("Execute failed: " . $stmt->error);
+        echo json_encode(["error" => "Execute failed: " . $stmt->error]);
+        exit;
     }
 
     $stmt->store_result();
@@ -39,20 +59,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $_SESSION['user_id'] = $user_id;
             $_SESSION['user_type'] = $user_type;
 
-            // Redirect based on user type
-            if ($user_type == 'Admin') {
-                header("Location: ../html/admin.html");
-            } elseif ($user_type == 'Volunteer') {
-                header("Location: ../html/volunteer.html");
-            } else {
-                header("Location: ../html/civ.html");
-            }
-            exit();
+            // Return success with user type
+            echo json_encode(["success" => true, "user_type" => $user_type]);
         } else {
-            echo "Invalid username or password.";
+            echo json_encode(["error" => "Invalid username or password."]);
         }
     } else {
-        echo "No such user found.";
+        echo json_encode(["error" => "No such user found."]);
     }
 
     $stmt->close();

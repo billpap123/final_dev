@@ -23,8 +23,13 @@ $only_available = isset($_GET['only_available']) ? filter_var($_GET['only_availa
 // Prepare SQL query with filters
 $categoryFilter = "";
 if (!empty($categories)) {
-    $categoryFilter = "AND c.cat_name IN ('" . implode("','", array_map('mysqli_real_escape_string', $categories)) . "')";
+    $escapedCategories = array_map(function($category) use ($con) {
+        return mysqli_real_escape_string($con, $category);
+    }, $categories);
+
+    $categoryFilter = "AND c.cat_name IN ('" . implode("','", $escapedCategories) . "')";
 }
+
 
 $availabilityFilter = $only_available ? "AND i.quantity > 0" : "";
 
