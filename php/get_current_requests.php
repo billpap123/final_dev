@@ -1,4 +1,9 @@
 <?php
+// Enable error reporting
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json");
 
@@ -17,13 +22,40 @@ if ($con->connect_error) {
     exit;
 }
 
-// Fetch current requests
+// Start session to get user ID
+session_start();
+
+// Check if user is logged in
+if (!isset($_SESSION['user_id'])) {
+    echo json_encode(["error" => "User not logged in"]);
+    $con->close();
+    exit;
+}
+
+$user_id = $_SESSION['user_id'];
+
+// Fetch current requests for the logged-in user
 $sql = "SELECT r.request_id, i.item_name, r.num_of_people AS people_count, r.status, r.date_created
         FROM requests r
         JOIN items i ON r.item_id = i.item_id
-        WHERE r.status IN ('Pending', 'Accepted')";
+        WHERE r.civilian_id = ? AND r.status IN ('Pending', 'Accepted')";
 
-$result = $con->query($sql);
+$stmt = $con->prepare($sql);
+if ($stmt === false) {
+    echo json_encode(["error" => "Prepare failed: " . $con->error]);
+    $con->close();
+    exit;
+}
+
+$stmt->bind_param("i", $user_id);
+if (!$stmt->execute()) {
+    echo json_encode(["error" => "Execute failed: " . $stmt->error]);
+    $stmt->close();
+    $con->close();
+    exit;
+}
+
+$result = $stmt->get_result();
 
 $requests = [];
 
@@ -36,5 +68,6 @@ if ($result->num_rows > 0) {
 echo json_encode(['requests' => $requests]);
 
 // Close connection
+$stmt->close();
 $con->close();
 ?>

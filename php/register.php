@@ -1,9 +1,8 @@
 <?php
-
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Database connection using mysqli_connect
+// Database connection
 $con = mysqli_connect("localhost", "root", "", "finaldb");
 
 if (!$con) {
@@ -51,7 +50,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         } elseif ($user_type == 'Volunteer') {
             header("Location: ../html/volunteer.html");
         } else {
-            header("Location: ../html/civilian.html");
+            header("Location: ../html/civ.html");
         }
         exit();
     } else {

@@ -63,3 +63,60 @@ a {
 a:hover {
     text-decoration: underline;
 }
+
+/* Dashboard Styles */
+header {
+    background-color: #00796b;
+    padding: 20px;
+    color: #fff;
+    text-align: center;
+}
+
+nav {
+    background-color: #00796b;
+    padding: 10px;
+    color: #fff;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+    margin: 0 10px;
+}
+
+nav a:hover {
+    text-decoration: underline;
+}
+
+section {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+button {
+    background-color: #00796b;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #004d40;
+}
+
+.error-message {
+    color: #d32f2f;
+    text-align: center;
+}
+
+.success-message {
+    color: #388e3c;
+    text-align: center;
+}

@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,17 +21,32 @@
             right: 0;
             height: 800px;
         }
+
+        #confirmChange {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #confirmChange:hover {
+            background-color: #45a049;
+        }
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin="" />
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""></script>
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
-
 <body>
     <div id="map"></div>
+    <button id="confirmChange" style="display: none;">Confirm Change</button>
+
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             mapStart();
@@ -48,37 +62,133 @@
                 attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             }).addTo(map);
 
-            var marker = L.marker(initialCoordinates, { draggable: true }).addTo(map);
+            fetch('../php/get_map_data.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        console.error('Error fetching data:', data.error);
+                        return;
+                    }
 
-            marker.on('dragend', function (event) {
-                var newPosition = marker.getLatLng();
-                console.log('New Coordinates:', newPosition.lat, newPosition.lng);
+                    console.log('Fetched data:', data);
 
-                // Send the new coordinates to your server
-                updateDatabase(newPosition.lat, newPosition.lng);
-            });
+                    // Add storage marker if available
+                    if (data.storage) {
+                        const storageLocation = data.storage;
+                        if (storageLocation) {
+                            const [lat, lng] = [storageLocation.lat, storageLocation.lng];
+                            var storageMarker = L.marker([parseFloat(lat), parseFloat(lng)], { draggable: true })
+                                .addTo(map)
+                                .bindPopup("<b>Storage</b><br>This is the storage location.");
 
-            marker.bindPopup("<b>Storage</b><br>This is a draggable storage marker.").openPopup();
+                            // Handle drag end event
+                            storageMarker.on('dragend', function (event) {
+                                var newPosition = event.target.getLatLng();
+                                updateStorageLocation(newPosition.lat, newPosition.lng);
+                            });
+                        }
+                    }
+
+                    // Define vehicle icon
+                    var vehicleIcon = L.icon({
+                        iconUrl: '../pngs/vehicle.png',
+                        iconSize: [32, 32], // Adjust size as needed
+                        iconAnchor: [16, 32], // Anchor point of the icon
+                        popupAnchor: [0, -32] // Popup anchor point
+                    });
+
+                    // Add vehicle markers
+                    if (data.vehicles && Array.isArray(data.vehicles)) {
+                        data.vehicles.forEach(vehicle => {
+                            if (vehicle.lat && vehicle.lng) {
+                                const vehicleMarker = L.marker([parseFloat(vehicle.lat), parseFloat(vehicle.lng)], { icon: vehicleIcon })
+                                    .addTo(map)
+                                    .bindPopup(`<b>Vehicle:</b> ${vehicle.vehicle_name}<br>
+                                        <b>Load:</b> ${vehicle.current_load}<br>
+                                        <b>Status:</b> ${vehicle.status}`);
+                            } else {
+                                console.error('Invalid vehicle coordinates:', vehicle);
+                            }
+                        });
+                    } else {
+                        console.error('No vehicles data or data is not an array.');
+                    }
+
+                    // Define request icon
+                    var requestIcon = L.icon({
+                        iconUrl: '../pngs/request_icon.png',
+                        iconSize: [25, 41], // Adjust size as needed
+                        iconAnchor: [12, 41], // Anchor point of the icon
+                        popupAnchor: [1, -34] // Popup anchor point
+                    });
+
+                    // Add request markers
+                    if (data.requests && Array.isArray(data.requests)) {
+                        data.requests.forEach(request => {
+                            if (request.lat && request.lng) {
+                                L.marker([parseFloat(request.lat), parseFloat(request.lng)], { icon: requestIcon })
+                                    .addTo(map)
+                                    .bindPopup(`<b>Request by:</b> ${request.civilian_name}<br>
+                                        <b>Item:</b> ${request.item_name}<br>
+                                        <b>Quantity:</b> ${request.quantity_requested}`);
+                            } else {
+                                console.error('Invalid request coordinates:', request);
+                            }
+                        });
+                    } else {
+                        console.error('No requests data or data is not an array.');
+                    }
+
+                    // Define offer icon
+                    var offerIcon = L.icon({
+                        iconUrl: '../pngs/offer_icon.png',
+                        iconSize: [25, 41], // Adjust size as needed
+                        iconAnchor: [12, 41], // Anchor point of the icon
+                        popupAnchor: [1, -34] // Popup anchor point
+                    });
+
+                    // Add offer markers
+                    if (data.offers && Array.isArray(data.offers)) {
+                        data.offers.forEach(offer => {
+                            if (offer.lat && offer.lng) {
+                                L.marker([parseFloat(offer.lat), parseFloat(offer.lng)], { icon: offerIcon })
+                                    .addTo(map)
+                                    .bindPopup(`<b>Offer by:</b> ${offer.civilian_name}<br>
+                                        <b>Item:</b> ${offer.item_name}<br>
+                                        <b>Quantity:</b> ${offer.quantity_offered}`);
+                            } else {
+                                console.error('Invalid offer coordinates:', offer);
+                            }
+                        });
+                    } else {
+                        console.error('No offers data or data is not an array.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching map data:', error);
+                });
         }
 
-        function updateDatabase(lat, lng) {
-            // Use fetch to send the new coordinates to your server
-            fetch('http://localhost/final_web/coordinates.php', {
+        function updateStorageLocation(lat, lng) {
+            fetch('../php/update_storage_location.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ stor_lat: lat, stor_long: lng }),
+                body: JSON.stringify({ lat: lat, lng: lng }),
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Database updated:', data);
+                if (data.success) {
+                    console.log('Storage location updated:', data);
+                } else {
+                    console.error('Error updating storage location:', data.error);
+                }
             })
             .catch(error => {
-                console.error('Error updating database:', error);
+                console.error('Error updating storage location:', error);
             });
         }
     </script>
 </body>
-
 </html>

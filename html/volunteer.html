@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="../css/admin_stylesheet.css">
+</head>
+
+<body>
+    <header>
+        <h1>Volunteer Dashboard</h1>
+    </header>
+
+    <nav>
+        <a href="#" onclick="home()">Home</a>
+        <a href="#" onclick="vehicle()">My Vehicle</a>
+        <a href="#" onclick="announcement()">Announcements</a>
+        <a href="#" onclick="map()">Map</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </nav>
+
+    <section>
+        <h2>Welcome</h2>
+        <!-- Content for the dashboard -->
+    </section>
+
+    <script>
+        function home() {
+            window.location.href = 'volunteer.html';
+        }
+
+        function vehicle() {
+            window.location.href = 'vehicle.html';
+        }
+
+        function map() {
+            window.location.href = 'vol_map.html';
+        }
+
+        function logout() {
+            fetch('../php/logout.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.href = 'login.html';
+                    } else {
+                        document.querySelector('.error-message').textContent = 'Error logging out: ' + data.error;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error logging out:', error);
+                });
+        }
+    </script>
+</body>
+
+</html>

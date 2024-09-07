@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="../css/admin_stylesheet.css">
+</head>
+<body>
+    <h1>Manage My Vehicle</h1>
+    <nav>
+        <a href="#" onclick="home()">Home</a>
+        <a href="#" onclick="vehicle()">My Vehicle</a>
+        <a href="#" onclick="announcement()">Announcements</a>
+        <a href="#" onclick="map()">Map</a>
+        <a href="#" onclick="logout()">Logout</a> 
+    </nav>
+
+    <section id="enrollVehicleSection" style="display: none;">
+        <h2>Enroll Your Vehicle</h2>
+        <form id="enrollVehicleForm">
+            <label for="vehicleName">Vehicle Name:</label>
+            <input type="text" id="vehicleName" name="vehicleName" required>
+            <button type="button" onclick="submitVehicleEnrollment()">Submit</button>
+        </form>
+        <div id="enrollmentMessage"></div>
+    </section>
+
+    <section id="manageVehicleSection" style="display: none;">
+        <h2>My Vehicle</h2>
+        <div id="vehicleDetails"></div>
+        <button id="editVehicleButton" onclick="showEditForm()">Edit Vehicle</button>
+        <button id="removeVehicleButton" onclick="removeVehicle()">Remove Vehicle</button>
+        
+        <form id="editVehicleForm" style="display: none;">
+            <label for="editVehicleName">New Vehicle Name:</label>
+            <input type="text" id="editVehicleName" required>
+            <button type="button" onclick="submitVehicleUpdate()">Update</button>
+        </form>
+    </section>
+
+    <script>
+        function home() {
+            window.location.href = 'volunteer.html';
+        }
+
+        function vehicle() {
+            window.location.href = 'vehicle.html';
+        }
+
+        function map() {
+            window.location.href = 'vol_map.html';
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            checkVehicleEnrollment();
+        });
+
+        function showSection(sectionId) {
+            document.getElementById('enrollVehicleSection').style.display = 'none';
+            document.getElementById('manageVehicleSection').style.display = 'none';
+            document.getElementById(sectionId).style.display = 'block';
+        }
+
+        function checkVehicleEnrollment() {
+    fetch('../php/check_vehicle_enrollment.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error:', data.error);
+                return;
+            }
+
+            if (data.requiresEnrollment) {
+                showSection('enrollVehicleSection');
+            } else if (data.vehicle) {
+                const vehicleDetails = `Vehicle Name: ${data.vehicle.vehicle_name}, Location: ${data.vehicle.current_location}`;
+                document.getElementById('vehicleDetails').innerText = vehicleDetails;
+                document.getElementById('editVehicleName').value = data.vehicle.vehicle_name; // Populate the edit form
+                document.getElementById('removeVehicleButton').style.display = 'block';
+                showSection('manageVehicleSection');
+            } else {
+                showSection('enrollVehicleSection');
+            }
+        })
+        .catch(error => {
+            console.error('Error checking vehicle enrollment:', error);
+        });
+}
+
+
+        function submitVehicleEnrollment() {
+            const vehicleName = document.getElementById('vehicleName').value;
+
+            fetch('../php/enroll_vehicle.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ vehicleName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('enrollmentMessage').textContent = 'Vehicle enrolled successfully!';
+                    checkVehicleEnrollment();
+                } else {
+                    document.getElementById('enrollmentMessage').textContent = 'Error enrolling vehicle: ' + data.error;
+                }
+            })
+            .catch(error => {
+                console.error('Error enrolling vehicle:', error);
+            });
+        }
+
+        function removeVehicle() {
+            fetch('../php/remove_vehicle.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('vehicleDetails').innerText = '';
+                    document.getElementById('removeVehicleButton').style.display = 'none';
+                    document.getElementById('enrollmentMessage').textContent = 'Vehicle removed successfully!';
+                    showSection('enrollVehicleSection');
+                } else {
+                    document.getElementById('enrollmentMessage').textContent = 'Error removing vehicle: ' + data.error;
+                }
+            })
+            .catch(error => {
+                console.error('Error removing vehicle:', error);
+            });
+        }
+
+        function showEditForm() {
+            document.getElementById('editVehicleForm').style.display = 'block';
+        }
+
+        function submitVehicleUpdate() {
+            const newVehicleName = document.getElementById('editVehicleName').value;
+
+            fetch('../php/update_vehicle.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ vehicleName: newVehicleName })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('enrollmentMessage').textContent = 'Vehicle updated successfully!';
+                    checkVehicleEnrollment(); // Refresh details
+                } else {
+                    document.getElementById('enrollmentMessage').textContent = 'Error updating vehicle: ' + data.error;
+                }
+            })
+            .catch(error => {
+                console.error('Error updating vehicle:', error);
+            });
+        }
+
+        function logout() {
+            fetch('../php/logout.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = 'login.html'; // Redirect to login page
+                } else {
+                    console.error('Error logging out:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error logging out:', error);
+            });
+        }
+    </script>
+</body>
+</html>

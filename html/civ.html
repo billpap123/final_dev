@@ -217,7 +217,20 @@
         }
 
         function logout() {
-            // Functionality to log out
+            fetch('../php/logout.php', {
+            method: 'GET',
+        })
+        .then(response => {
+            if (response.ok) {
+                // Redirect to the login page after successful logout
+                window.location.href = 'login.html';
+            } else {
+                console.error('Logout failed.');
+            }
+        })
+        .catch(error => {
+            console.error('Error during logout:', error);
+        });
         }
     </script>
 </body>

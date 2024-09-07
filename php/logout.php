@@ -1,19 +1,17 @@
 <?php
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-// Destroy the session data
-session_unset();
-session_destroy();
+try {
+    // Destroy the session
+    session_unset();
+    session_destroy();
 
-// Optionally, remove any session cookies
-if (ini_get("session.use_cookies")) {
-    $params = session_get_cookie_params();
-    setcookie(session_name(), '', time() - 42000,
-        $params["path"], $params["domain"],
-        $params["secure"], $params["httponly"]
-    );
+    // Send a JSON response indicating success
+    header('Content-Type: application/json');
+    echo json_encode(['success' => true]);
+} catch (Exception $e) {
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'error' => 'Error logging out: ' . $e->getMessage()]);
 }
-
-// Respond with a success status
-http_response_code(200);
-?>
