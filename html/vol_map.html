@@ -9,18 +9,41 @@
         body {
             margin: 0;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
             height: 100vh;
         }
 
+        nav {
+            width: 100%;
+            background-color: #333;
+            padding: 10px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        nav a {
+            color: white;
+            padding: 14px 20px;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        nav a:hover {
+            background-color: #575757;
+        }
+
+        #mapContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-grow: 1;
+            width: 100%;
+        }
+
         #map {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 800px;
+            height: 400px;
+            width: 80%;
         }
 
         .popup-buttons {
@@ -67,22 +90,17 @@
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-</head>
 
-<body>
-    <div id="map"></div>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             mapStart();
         });
 
-        let map; // Declare map variable outside function
-        let currentMarker; // To hold the current marker for updates
-        let currentRequestOrOfferId; // To store the currently selected request or offer
+        let map;
 
         function mapStart() {
             if (map) {
-                return; // If map is already initialized, do nothing
+                return;
             }
 
             var initialCoordinates = [38.250271, 21.738752];
@@ -102,256 +120,131 @@
                         return;
                     }
 
-                    console.log('Fetched data:', data);
+                    // Display vehicle markers
+                    displayVehicleMarkers(data.vehicles);
 
-                    // Define vehicle icon
-                    var vehicleIcon = L.icon({
-                        iconUrl: '../pngs/vehicle.png',
-                        iconSize: [32, 32],
-                        iconAnchor: [16, 32],
-                        popupAnchor: [0, -32]
-                    });
+                    // Display request markers
+                    displayRequestMarkers(data.requests);
 
-                    // Add vehicle markers
-                    if (data.vehicles && Array.isArray(data.vehicles)) {
-                        data.vehicles.forEach(vehicle => {
-                            if (vehicle.lat && vehicle.lng) {
-                                L.marker([parseFloat(vehicle.lat), parseFloat(vehicle.lng)], { icon: vehicleIcon })
-                                    .addTo(map)
-                                    .bindPopup(`<b>Vehicle:</b> ${vehicle.vehicle_name}<br>
-                                        <b>Load:</b> ${vehicle.current_load}<br>
-                                        <b>Status:</b> ${vehicle.status}`);
-                            }
-                        });
-                    }
-
-                    // Define request icon
-                    var requestIcon = L.icon({
-                        iconUrl: '../pngs/request_icon.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34]
-                    });
-
-                    // Add request markers
-                    if (data.requests && Array.isArray(data.requests)) {
-                        data.requests.forEach(request => {
-                            if (request.lat && request.lng) {
-                                let marker = L.marker([parseFloat(request.lat), parseFloat(request.lng)], { icon: requestIcon })
-                                    .addTo(map)
-                                    .bindPopup(`
-                                        <b>Request by:</b> ${request.civilian_name}<br>
-                                        <b>Item:</b> ${request.item_name}<br>
-                                        <b>Quantity:</b> ${request.quantity_requested}<br>
-                                        <div class="popup-buttons">
-                                            <button class="serve-button" onclick="serveRequest(${request.request_id}, ${request.lat}, ${request.lng})">Serve Request</button>
-                                        </div>
-                                    `);
-                            }
-                        });
-                    }
-
-                    // Define offer icon
-                    var offerIcon = L.icon({
-                        iconUrl: '../pngs/offer_icon.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34]
-                    });
-
-                    // Add offer markers
-                    if (data.offers && Array.isArray(data.offers)) {
-                        data.offers.forEach(offer => {
-                            if (offer.lat && offer.lng) {
-                                let marker = L.marker([parseFloat(offer.lat), parseFloat(offer.lng)], { icon: offerIcon })
-                                    .addTo(map)
-                                    .bindPopup(`
-                                        <b>Offer by:</b> ${offer.civilian_name}<br>
-                                        <b>Item:</b> ${offer.item_name}<br>
-                                        <b>Quantity:</b> ${offer.quantity_offered}<br>
-                                        <div class="popup-buttons">
-                                            <button class="serve-button" onclick="serveOffer(${offer.offer_id}, ${offer.lat}, ${offer.lng})">Serve Offer</button>
-                                        </div>
-                                    `);
-                            }
-                        });
-                    }
+                    // Display offer markers
+                    displayOfferMarkers(data.offers);
                 })
                 .catch(error => {
                     console.error('Error fetching map data:', error);
                 });
         }
 
-        function getVehiclePosition() {
-            return fetch('../php/get_vehicle_position.php')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-                    return data;
-                })
-                .catch(error => {
-                    console.error('Error fetching vehicle position:', error);
-                    alert('Error fetching vehicle position.');
+        function displayVehicleMarkers(vehicles) {
+            if (vehicles && Array.isArray(vehicles)) {
+                var vehicleIcon = L.icon({
+                    iconUrl: '../pngs/vehicle.png',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32],
+                    popupAnchor: [0, -32]
                 });
-        }
 
-        function serveRequest(requestId, requestLat, requestLng) {
-    getVehiclePosition().then(vehicleData => {
-        const vehicleLatLng = [parseFloat(vehicleData.lat), parseFloat(vehicleData.lng)];
-        const requestLatLng = [parseFloat(requestLat), parseFloat(requestLng)];
-
-        if (!vehicleLatLng || !requestLatLng) {
-            console.error('Invalid vehicle or request coordinates');
-            return;
-        }
-
-        // Draw line on the map
-        L.polyline([vehicleLatLng, requestLatLng], { color: 'blue' }).addTo(map);
-
-        // Show buttons
-        document.querySelectorAll('.popup-buttons').forEach(buttons => {
-            buttons.innerHTML = `
-                <button class="complete-button" onclick="completeRequest(${requestId})">Complete Request</button>
-                <button class="cancel-button" onclick="cancelRequest(${requestId})">Cancel Request</button>
-            `;
-        });
-    });
-}
-
-  
-
-        function serveOffer(offerId, offerLat, offerLng) {
-    getVehiclePosition().then(vehicleData => {
-        if (!vehicleData.lat || !vehicleData.lng) {
-            alert("Vehicle position not found.");
-            return;
-        }
-
-        const vehicleLatLng = [parseFloat(vehicleData.lat), parseFloat(vehicleData.lng)];
-        const offerLatLng = [parseFloat(offerLat), parseFloat(offerLng)];
-
-        if (!vehicleLatLng || !offerLatLng) {
-            console.error('Invalid vehicle or offer coordinates');
-            return;
-        }
-
-        // Draw line on the map
-        if (currentMarker) {
-            map.removeLayer(currentMarker);
-        }
-        currentMarker = L.polyline([vehicleLatLng, offerLatLng], { color: 'red' }).addTo(map);
-
-        // Show buttons
-        document.querySelectorAll('.popup-buttons').forEach(buttons => {
-            buttons.innerHTML = `
-                <button class="complete-button" onclick="completeOffer(${offerId})">Complete Offer</button>
-                <button class="cancel-button" onclick="cancelOffer(${offerId})">Cancel Offer</button>
-            `;
-        });
-    });
-}
-
-
-
-        // Function to handle completing requests
-        function completeRequest(requestId) {
-            fetch('../php/complete_request.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ request_id: requestId }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Request completed successfully!");
-                        mapStart(); // Reload the map to reflect changes
-                    } else {
-                        alert("Error completing request: " + data.error);
+                vehicles.forEach(vehicle => {
+                    if (vehicle.lat && vehicle.lng) {
+                        L.marker([parseFloat(vehicle.lat), parseFloat(vehicle.lng)], { icon: vehicleIcon })
+                            .addTo(map)
+                            .bindPopup(`<b>Vehicle:</b> ${vehicle.vehicle_name}<br>
+                                <b>Load:</b> ${vehicle.current_load}<br>
+                                <b>Status:</b> ${vehicle.status}`);
                     }
-                })
-                .catch(error => {
-                    console.error('Error completing request:', error);
                 });
+            }
         }
 
-        // Function to handle canceling requests
-        function cancelRequest(requestId) {
-            fetch('../php/cancel_request.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ request_id: requestId }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Request canceled successfully!");
-                        mapStart(); // Reload the map to reflect changes
-                    } else {
-                        alert("Error canceling request: " + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error canceling request:', error);
+        function displayRequestMarkers(requests) {
+            if (requests && Array.isArray(requests)) {
+                var requestIcon = L.icon({
+                    iconUrl: '../pngs/request_icon.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34]
                 });
+
+                requests.forEach(request => {
+                    if (request.lat && request.lng) {
+                        let marker = L.marker([parseFloat(request.lat), parseFloat(request.lng)], { icon: requestIcon })
+                            .addTo(map)
+                            .bindPopup(`
+                                <b>Request by:</b> ${request.civilian_name}<br>
+                                <b>Item:</b> ${request.item_name}<br>
+                                <b>Quantity:</b> ${request.quantity_requested}<br>
+                                <div class="popup-buttons">
+                                    <button class="serve-button" onclick="serveRequest(${request.request_id}, ${request.lat}, ${request.lng})">Serve Request</button>
+                                </div>
+                            `);
+                    }
+                });
+            }
         }
 
-        // Function to handle completing offers
-        function completeOffer(offerId) {
-            fetch('../php/complete_offer.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ offer_id: offerId }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Offer completed successfully!");
-                        mapStart(); // Reload the map to reflect changes
-                    } else {
-                        alert("Error completing offer: " + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error completing offer:', error);
+        function displayOfferMarkers(offers) {
+            if (offers && Array.isArray(offers)) {
+                var offerIcon = L.icon({
+                    iconUrl: '../pngs/offer_icon.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34]
                 });
+
+                offers.forEach(offer => {
+                    if (offer.lat && offer.lng) {
+                        let marker = L.marker([parseFloat(offer.lat), parseFloat(offer.lng)], { icon: offerIcon })
+                            .addTo(map)
+                            .bindPopup(`
+                                <b>Offer by:</b> ${offer.civilian_name}<br>
+                                <b>Item:</b> ${offer.item_name}<br>
+                                <b>Quantity:</b> ${offer.quantity_offered}<br>
+                                <div class="popup-buttons">
+                                    <button class="serve-button" onclick="serveOffer(${offer.offer_id}, ${offer.lat}, ${offer.lng})">Serve Offer</button>
+                                </div>
+                            `);
+                    }
+                });
+            }
         }
 
-        // Function to handle canceling offers
-        function cancelOffer(offerId) {
-            fetch('../php/cancel_offer.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ offer_id: offerId }),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert("Offer canceled successfully!");
-                        mapStart(); // Reload the map to reflect changes
-                    } else {
-                        alert("Error canceling offer: " + data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error canceling offer:', error);
-                });
+        function logout() {
+            fetch('../php/logout.php', {
+                method: 'GET',
+                credentials: 'include'
+            }).then(response => {
+                if (response.ok) {
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    window.location.href = 'login.html';
+                } else {
+                    console.error('Logout failed');
+                }
+            }).catch(error => {
+                console.error('Error during logout:', error);
+            });
         }
     </script>
+</head>
+
+<body>
+    <header>
+        <h1>Volunteer Dashboard</h1>
+    </header>
+    <nav>
+        <a href="#" onclick="home()">Home</a>
+        <a href="#" onclick="showSection('requestSection')">Request an Item</a>
+        <a href="#" onclick="showSection('offerSection')">Offer an Item</a>
+        <a href="#" onclick="showSection('announcementsSection')">View Announcements</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </nav>
+
+    <div id="mapContainer">
+        <div id="map"></div>
+    </div>
+
+    <footer>
+        &copy; 2024 Volunteer Dashboard
+    </footer>
 </body>
 
 </html>

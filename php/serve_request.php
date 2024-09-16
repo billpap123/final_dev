@@ -38,6 +38,7 @@ try {
 
     $vehicle_id = $vehicle['vehicle_id'];
 
+    // Read the input data
     $raw_data = file_get_contents("php://input");
     $data = json_decode($raw_data, true);
 
@@ -49,22 +50,35 @@ try {
     $request_id = $data['request_id'] ?? null;
 
     if ($request_id) {
+        // Start a transaction to ensure data consistency
+        $conn->beginTransaction();
+
+        // Update the request status to 'Processing'
         $stmt = $conn->prepare("UPDATE requests SET status = 'Processing' WHERE request_id = ?");
         $stmt->bindParam(1, $request_id, PDO::PARAM_INT);
+
         if ($stmt->execute()) {
+            // Insert the new task into the tasks table
             $stmt = $conn->prepare("INSERT INTO tasks (type, vehicle_id, request_id, status, assigned_date) VALUES ('Delivery', ?, ?, 'Processing', CURDATE())");
             $stmt->bindParam(1, $vehicle_id, PDO::PARAM_INT);
             $stmt->bindParam(2, $request_id, PDO::PARAM_INT);
+
             if ($stmt->execute()) {
+                // Commit the transaction
+                $conn->commit();
                 echo json_encode(["success" => true]);
             } else {
+                // Rollback the transaction if task creation fails
+                $conn->rollBack();
                 echo json_encode(["success" => false, "error" => "Failed to create task"]);
             }
         } else {
+            // Rollback the transaction if request update fails
+            $conn->rollBack();
             echo json_encode(["success" => false, "error" => "Failed to update request status"]);
         }
     } else {
-        echo json_encode(["success" => false, "error" => "request ID not provided"]);
+        echo json_encode(["success" => false, "error" => "Request ID not provided"]);
     }
 
 } catch (PDOException $e) {

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Statistics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="../css/chart_sheet.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #chartContainer {
+            width: 80%;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Service Statistics</h1>
+</header>
+<nav>
+    <a href="#" onclick="home()">Home</a>
+    <a href="#" onclick="users()">Users</a>
+    <a href="#" onclick="products()">Products</a>
+    <a href="#" onclick="announcement()">Announcements</a>
+    <a href="#" onclick="map()">Map</a>
+    <a href="#" onclick="chart()">Chart</a>
+</nav>
+<section id="chartContainer">
+    <canvas id="serviceChart"></canvas>
+</section>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        fetchServiceData();
+        checkLoginStatus();
+    });
+
+    function checkLoginStatus() {
+            fetch('../php/check_login.php', {
+                method: 'GET',
+                credentials: 'include' // Ensures session cookies are sent
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.loggedIn) {
+                    // Redirect to the login page if not logged in
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking login status:', error);
+                window.location.href = 'login.html'; // Redirect if there's an error
+            });
+        }
+
+
+
+        function logout() {
+            fetch('../php/logout.php', {
+                method: 'GET',
+                credentials: 'include' // Include session cookies
+            }).then(response => {
+                if (response.ok) {
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    window.location.href = 'login.html';
+                } else {
+                    console.error('Logout failed');
+                }
+            }).catch(error => {
+                console.error('Error during logout:', error);
+            });
+        }
+
+ 
+    function home() {
+            window.location.href = 'admin.html';
+        }
+        
+        function map() {
+            window.location.href = 'map.html';
+        }
+        
+        
+        function products() {
+            window.location.href = 'products.html';
+        }
+        
+        function announcement() {
+            window.location.href = 'admin_announcement.html';
+        }
+        
+        function users() {
+            window.location.href = 'users.html';
+        }
+        function chart() {
+            window.location.href = 'chart.html';
+        }
+
+    function fetchServiceData() {
+        fetch('../php/get_service_statistics.php')  // PHP file that fetches statistics
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error fetching data:', data.error);
+                    return;
+                }
+                
+                displayChart(data);
+            })
+            .catch(error => {
+                console.error('Error fetching statistics:', error);
+            });
+    }
+
+    function displayChart(data) {
+        const ctx = document.getElementById('serviceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',  // or 'line', 'pie', etc.
+            data: {
+                labels: ['New Requests', 'New Offers', 'Completed Requests', 'Completed Offers'],
+                datasets: [{
+                    label: '',
+                    data: [data.new_requests, data.new_offers, data.completed_requests, data.completed_offers],
+                    backgroundColor: [
+                        'rgba(54, 162, 235, 0.6)',  // New Requests
+                        'rgba(75, 192, 192, 0.6)',  // New Offers
+                        'rgba(255, 99, 132, 0.6)',  // Completed Requests
+                        'rgba(153, 102, 255, 0.6)'  // Completed Offers
+                    ],
+                    borderColor: [
+                        'rgba(54, 162, 235, 1)',
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(153, 102, 255, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+</script>
+
+
+
+<footer>
+    &copy; 2024 Admin Dashboard <br><br><br>
+    <button onclick="logout()">Log Out</button>
+</footer>
+</body>
+</html>

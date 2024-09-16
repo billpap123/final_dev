@@ -1,81 +1,59 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Civilian Dashboard</title>
     <link rel="stylesheet" type="text/css" href="../css/civilian_stylesheet.css">
-</head>
-
-<body>
-    <nav>
-        <a href="#" onclick="showSection('requestSection')">Request an Item</a>
-        <a href="#" onclick="showSection('offerSection')">Offer an Item</a>
-        <a href="#" onclick="viewAnnouncements()">Announcements</a>
-        <a href="#" onclick="logout()">Logout</a>
-    </nav>
-
-    <section id="requestSection">
-        <h2>Request an Item</h2>
-
-        <!-- Search and Category Selection -->
-        <div>
-            <label for="itemSearch">Search for an item:</label>
-            <input type="text" id="itemSearch" oninput="autocompleteItems()">
-
-            <label for="categorySelect">or Select Category:</label>
-            <select id="categorySelect" onchange="loadItemsByCategory()">
-                <option value="">Select Category</option>
-                <!-- Categories will be dynamically populated -->
-            </select>
-
-            <label for="itemSelect">Select Item:</label>
-            <select id="itemSelect">
-                <!-- Items will be dynamically populated -->
-            </select>
-        </div>
-
-        <!-- People Involved -->
-        <div>
-            <label for="peopleCount">Number of People Involved:</label>
-            <input type="number" id="peopleCount" min="1">
-        </div>
-
-        <!-- Submit Request -->
-        <button onclick="submitRequest()">Submit Request</button>
-
-        <!-- Request Status Message -->
-        <div id="requestMessage"></div>
-
-        <!-- List of Current Requests -->
-        <h3>My Current Requests</h3>
-        <div id="currentRequests">
-            <!-- Current requests will be displayed here -->
-        </div>
-
-        <!-- List of Past Requests -->
-        <h3>My Past Requests</h3>
-        <div id="pastRequests">
-            <!-- Past requests will be displayed here -->
-        </div>
-    </section>
-
-    <section id="offerSection" style="display: none;">
-        <h2>Manage Offers</h2>
-        <!-- Announcements and Offer Management will go here -->
-    </section>
-
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             fetchCategories();
             loadCurrentRequests();
             loadPastRequests();
+            loadAnnouncements();
+            checkLoginStatus();
         });
+        function checkLoginStatus() {
+            fetch('../php/check_login.php', {
+                method: 'GET',
+                credentials: 'include' // Ensures session cookies are sent
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.loggedIn) {
+                    // Redirect to the login page if not logged in
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking login status:', error);
+                window.location.href = 'login.html'; // Redirect if there's an error
+            });
+        }
+
+
+
+        function logout() {
+            fetch('../php/logout.php', {
+                method: 'GET',
+                credentials: 'include' // Include session cookies
+            }).then(response => {
+                if (response.ok) {
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    window.location.href = 'login.html';
+                } else {
+                    console.error('Logout failed');
+                }
+            }).catch(error => {
+                console.error('Error during logout:', error);
+            });
+        }
 
         function showSection(sectionId) {
             document.getElementById('requestSection').style.display = 'none';
             document.getElementById('offerSection').style.display = 'none';
+            document.getElementById('announcementsSection').style.display = 'none';
             document.getElementById(sectionId).style.display = 'block';
         }
 
@@ -151,15 +129,15 @@
                     },
                     body: JSON.stringify({ item_id: itemId, people_count: peopleCount }),
                 })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            document.getElementById('requestMessage').textContent = 'Request submitted successfully!';
-                            loadCurrentRequests();
-                        } else {
-                            document.getElementById('requestMessage').textContent = 'Error submitting request.';
-                        }
-                    });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('requestMessage').textContent = 'Request submitted successfully!';
+                        loadCurrentRequests();
+                    } else {
+                        document.getElementById('requestMessage').textContent = 'Error submitting request.';
+                    }
+                });
             } else {
                 document.getElementById('requestMessage').textContent = 'Please select an item and specify the number of people.';
             }
@@ -211,28 +189,152 @@
                 });
         }
 
+        function loadAnnouncements() {
+            fetch('../php/get_announcements.php')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.announcements) {
+                        populateAnnouncementSelect(data.announcements);
+                        displayAnnouncements(data.announcements);
+                    }
+                })
+                .catch(error => console.error('Error fetching announcements:', error));
+        }
 
-        function viewAnnouncements() {
-            // Functionality to view announcements
+        function populateAnnouncementSelect(announcements) {
+            const announcementSelect = document.getElementById('announcementSelect');
+            announcementSelect.innerHTML = '<option value="">Select Announcement</option>';
+            announcements.forEach(announcement => {
+                const option = document.createElement('option');
+                option.value = announcement.announcement_id;
+                option.textContent = `${announcement.item_name} - ${announcement.quantity_needed} needed`;
+                announcementSelect.appendChild(option);
+            });
+        }
+
+        function displayAnnouncements(announcements) {
+            const announcementsList = document.getElementById('announcementsList');
+            announcementsList.innerHTML = '';
+            announcements.forEach(announcement => {
+                const announcementDiv = document.createElement('div');
+                announcementDiv.textContent = `Item: ${announcement.item_name}, Quantity Needed: ${announcement.quantity_needed}, Date Created: ${announcement.date_created}`;
+                announcementsList.appendChild(announcementDiv);
+            });
+        }
+
+        function submitOffer() {
+            const announcementId = document.getElementById('announcementSelect').value;
+            const offerQuantity = document.getElementById('offerQuantity').value;
+
+            if (announcementId && offerQuantity > 0) {
+                fetch('../php/submit_offer.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ announcement_id: announcementId, quantity_offered: offerQuantity }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('offerMessage').textContent = 'Offer submitted successfully!';
+                    } else {
+                        document.getElementById('offerMessage').textContent = 'Error submitting offer.';
+                    }
+                });
+            } else {
+                document.getElementById('offerMessage').textContent = 'Please select an announcement and specify a quantity.';
+            }
         }
 
         function logout() {
-            fetch('../php/logout.php', {
-            method: 'GET',
-        })
-        .then(response => {
-            if (response.ok) {
-                // Redirect to the login page after successful logout
-                window.location.href = 'login.html';
-            } else {
-                console.error('Logout failed.');
-            }
-        })
-        .catch(error => {
-            console.error('Error during logout:', error);
-        });
+            fetch('../php/logout.php')
+                .then(() => {
+                    window.location.href = '../html/login.html';
+                });
         }
     </script>
-</body>
+</head>
 
+<body>
+    <nav>
+        <a href="#" onclick="showSection('requestSection')">Request an Item</a>
+        <a href="#" onclick="showSection('offerSection')">Offer an Item</a>
+        <a href="#" onclick="showSection('announcementsSection')">View Announcements</a>
+        <a href="#" onclick="logout()">Logout</a>
+    </nav>
+
+    <!-- Request Section -->
+    <section id="requestSection" style="display: none;">
+        <h2>Request an Item</h2>
+
+        <!-- Search and Category Selection -->
+        <div>
+            <label for="itemSearch">Search for an item:</label>
+            <input type="text" id="itemSearch" oninput="autocompleteItems()">
+
+            <label for="categorySelect">or Select Category:</label>
+            <select id="categorySelect" onchange="loadItemsByCategory()">
+                <option value="">Select Category</option>
+                <!-- Categories will be dynamically populated -->
+            </select>
+
+            <label for="itemSelect">Select Item:</label>
+            <select id="itemSelect">
+                <!-- Items will be dynamically populated -->
+            </select>
+        </div>
+
+        <!-- People Involved -->
+        <div>
+            <label for="peopleCount">Number of People Involved:</label>
+            <input type="number" id="peopleCount" min="1">
+        </div>
+
+        <!-- Submit Request -->
+        <button onclick="submitRequest()">Submit Request</button>
+
+        <!-- Request Status Message -->
+        <div id="requestMessage"></div>
+
+        <!-- List of Current Requests -->
+        <h3>My Current Requests</h3>
+        <div id="currentRequests">
+            <!-- Current requests will be displayed here -->
+        </div>
+
+        <!-- List of Past Requests -->
+        <h3>My Past Requests</h3>
+        <div id="pastRequests">
+            <!-- Past requests will be displayed here -->
+        </div>
+    </section>
+
+    <!-- Offer Section -->
+    <section id="offerSection" style="display: none;">
+        <h2>Offer a Product</h2>
+        <div>
+            <label for="announcementSelect">Select Announcement:</label>
+            <select id="announcementSelect">
+                <!-- Announcements will be dynamically populated -->
+            </select>
+        </div>
+        <div>
+            <label for="offerQuantity">Quantity Offered:</label>
+            <input type="number" id="offerQuantity" min="1">
+        </div>
+        <button onclick="submitOffer()">Submit Offer</button>
+        <div id="offerMessage"></div>
+    </section>
+
+    <!-- Announcements Section -->
+    <section id="announcementsSection" style="display: none;">
+        <h2>Announcements</h2>
+        <div id="announcementsList">
+            <!-- Announcements will be dynamically populated here -->
+        </div>
+    </section>
+
+   
+</body>
 </html>

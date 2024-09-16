@@ -7,18 +7,37 @@
     <link rel="stylesheet" href="../css/admin_stylesheet.css">
     
     <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Check if the user is logged in when the page loads
+            checkLoginStatus();
+        });
+
+        function checkLoginStatus() {
+            fetch('../php/check_login.php', {
+                method: 'GET',
+                credentials: 'include' // Ensures session cookies are sent
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.loggedIn) {
+                    // Redirect to the login page if not logged in
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking login status:', error);
+                window.location.href = 'login.html'; // Redirect if there's an error
+            });
+        }
+
         function logout() {
-            // Make an asynchronous request to the server-side logout script
             fetch('../php/logout.php', {
-                method: 'GET', // Assuming GET method for logout, adjust if needed
-                credentials: 'include' // Include cookies to ensure server session is terminated
+                method: 'GET',
+                credentials: 'include' // Include session cookies
             }).then(response => {
                 if (response.ok) {
-                    // Clear client-side storage
                     sessionStorage.clear();
                     localStorage.clear();
-                    
-                    // Redirect to login page
                     window.location.href = 'login.html';
                 } else {
                     console.error('Logout failed');
@@ -27,29 +46,29 @@
                 console.error('Error during logout:', error);
             });
         }
-        
+
         function home() {
             window.location.href = 'admin.html';
         }
-        
+
         function map() {
             window.location.href = 'map.html';
         }
-        
-        function settings() {
-            window.location.href = 'settings.html';
-        }
-        
+
         function products() {
             window.location.href = 'products.html';
         }
-        
+
         function announcement() {
             window.location.href = 'admin_announcement.html';
         }
-        
+
         function users() {
             window.location.href = 'users.html';
+        }
+        
+        function chart() {
+            window.location.href = 'chart.html';
         }
     </script>
 </head>
@@ -63,9 +82,9 @@
     <a href="#" onclick="home()">Home</a>
     <a href="#" onclick="users()">Users</a>
     <a href="#" onclick="products()">Products</a>
-    <a href="#" onclick="settings()">Settings</a>
     <a href="#" onclick="announcement()">Announcements</a>
     <a href="#" onclick="map()">Map</a>
+    <a href="#" onclick="chart()">Chart</a>
 </nav>
 
 <section>
@@ -73,7 +92,7 @@
 </section>
 
 <footer>
-    &copy; 2023 Admin Dashboard <br><br><br>
+    &copy; 2024 Admin Dashboard <br><br><br>
     <button onclick="logout()">Log Out</button>
 </footer>
 

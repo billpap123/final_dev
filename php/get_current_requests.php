@@ -1,5 +1,4 @@
 <?php
-// Enable error reporting
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -7,25 +6,20 @@ error_reporting(E_ALL);
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json");
 
-// Database connection details
 $servername = "localhost";
 $username = "root";
 $password = "";
 $dbname = "finaldb";
 
-// Create connection
 $con = new mysqli($servername, $username, $password, $dbname);
 
-// Check connection
 if ($con->connect_error) {
     echo json_encode(["error" => "Connection failed: " . $con->connect_error]);
     exit;
 }
 
-// Start session to get user ID
 session_start();
 
-// Check if user is logged in
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(["error" => "User not logged in"]);
     $con->close();

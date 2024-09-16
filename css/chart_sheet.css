@@ -1,0 +1,86 @@
+/* General styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    align-items: center;
+}
+
+/* Header styles */
+header {
+    width: 100%;
+    background-color: #333;
+    color: #fff;
+    padding: 20px 0;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Navigation styles */
+nav {
+    width: 100%;
+    background-color: #555;
+    display: flex;
+    justify-content: center;
+    padding: 10px 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+nav a {
+    color: #fff;
+    text-decoration: none;
+    padding: 12px 20px;
+    font-weight: bold;
+    font-size: 16px;
+    margin: 0 10px;
+}
+
+nav a:hover {
+    background-color: #333;
+    border-radius: 4px;
+}
+
+/* Chart container */
+#chartContainer {
+    width: 80%;
+    margin-top: 50px;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+canvas {
+    width: 100%;
+    height: auto;
+}
+
+/* Footer styles */
+footer {
+    width: 100%;
+    background-color: #333;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+    margin-top: auto;
+}
+
+/* Responsive styling */
+@media (max-width: 768px) {
+    nav a {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    #chartContainer {
+        width: 95%;
+        padding: 10px;
+    }
+}

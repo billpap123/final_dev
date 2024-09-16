@@ -4,59 +4,94 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Map</title>
-    <style>
-        body {
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        #map {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 800px;
-        }
-
-        #confirmChange {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            padding: 10px;
-            background-color: #4CAF50;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        #confirmChange:hover {
-            background-color: #45a049;
-        }
-    </style>
+    <link rel="stylesheet" href="../css/map_stylesheet.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-</head>
-<body>
-    <div id="map"></div>
-    <button id="confirmChange" style="display: none;">Confirm Change</button>
+   
+   <script>
+    function home() {
+            window.location.href = 'admin.html';
+        }
 
-    <script>
+        function maap() {
+            window.location.href = 'map.html';
+        }
+
+        function products() {
+            window.location.href = 'products.html';
+        }
+
+        function announcement() {
+            window.location.href = 'admin_announcement.html';
+        }
+
+        function users() {
+            window.location.href = 'users.html';
+        }
+        
+        function chart() {
+            window.location.href = 'chart.html';
+        }
+        let map;
+        let requestMarkers = [];
+        let offerMarkers = [];
+        let vehicleMarkers = [];
+        let connectionLines = [];
+
         document.addEventListener("DOMContentLoaded", function () {
+            checkLoginStatus();
             mapStart();
+
+            // Add filter change listeners
+            document.getElementById('showPendingRequests').addEventListener('change', toggleRequestMarkers);
+            document.getElementById('showAssignedRequests').addEventListener('change', toggleRequestMarkers);
+            document.getElementById('showOffers').addEventListener('change', toggleOfferMarkers);
+            document.getElementById('showVehiclesWithTasks').addEventListener('change', toggleVehicleMarkers);
+            document.getElementById('showVehiclesWithoutTasks').addEventListener('change', toggleVehicleMarkers);
+            document.getElementById('showConnectionLines').addEventListener('change', toggleConnectionLines);
         });
 
-        function mapStart() {
-            var initialCoordinates = [38.250271, 21.738752];
-            var initialZoomLevel = 13;
+        function checkLoginStatus() {
+            fetch('../php/check_login.php', {
+                method: 'GET',
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.loggedIn) {
+                    window.location.href = 'login.html';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking login status:', error);
+                window.location.href = 'login.html';
+            });
+        }
 
-            var map = L.map('map').setView(initialCoordinates, initialZoomLevel);
+        function logout() {
+            fetch('../php/logout.php', {
+                method: 'GET',
+                credentials: 'include'
+            }).then(response => {
+                if (response.ok) {
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    window.location.href = 'login.html';
+                } else {
+                    console.error('Logout failed');
+                }
+            }).catch(error => {
+                console.error('Error during logout:', error);
+            });
+        }
+
+        function mapStart() {
+            const initialCoordinates = [38.250271, 21.738752];
+            const initialZoomLevel = 13;
+
+            map = L.map('map').setView(initialCoordinates, initialZoomLevel);
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
                 attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -70,8 +105,6 @@
                         return;
                     }
 
-                    console.log('Fetched data:', data);
-
                     // Add storage marker if available
                     if (data.storage) {
                         const storageLocation = data.storage;
@@ -80,8 +113,6 @@
                             var storageMarker = L.marker([parseFloat(lat), parseFloat(lng)], { draggable: true })
                                 .addTo(map)
                                 .bindPopup("<b>Storage</b><br>This is the storage location.");
-
-                            // Handle drag end event
                             storageMarker.on('dragend', function (event) {
                                 var newPosition = event.target.getLatLng();
                                 updateStorageLocation(newPosition.lat, newPosition.lng);
@@ -89,79 +120,70 @@
                         }
                     }
 
-                    // Define vehicle icon
                     var vehicleIcon = L.icon({
                         iconUrl: '../pngs/vehicle.png',
-                        iconSize: [32, 32], // Adjust size as needed
-                        iconAnchor: [16, 32], // Anchor point of the icon
-                        popupAnchor: [0, -32] // Popup anchor point
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 32],
+                        popupAnchor: [0, -32]
                     });
 
-                    // Add vehicle markers
                     if (data.vehicles && Array.isArray(data.vehicles)) {
-                        data.vehicles.forEach(vehicle => {
+                        vehicleMarkers = data.vehicles.map(vehicle => {
                             if (vehicle.lat && vehicle.lng) {
-                                const vehicleMarker = L.marker([parseFloat(vehicle.lat), parseFloat(vehicle.lng)], { icon: vehicleIcon })
-                                    .addTo(map)
+                                return L.marker([parseFloat(vehicle.lat), parseFloat(vehicle.lng)], { icon: vehicleIcon })
                                     .bindPopup(`<b>Vehicle:</b> ${vehicle.vehicle_name}<br>
                                         <b>Load:</b> ${vehicle.current_load}<br>
                                         <b>Status:</b> ${vehicle.status}`);
-                            } else {
-                                console.error('Invalid vehicle coordinates:', vehicle);
                             }
                         });
-                    } else {
-                        console.error('No vehicles data or data is not an array.');
                     }
 
-                    // Define request icon
                     var requestIcon = L.icon({
                         iconUrl: '../pngs/request_icon.png',
-                        iconSize: [25, 41], // Adjust size as needed
-                        iconAnchor: [12, 41], // Anchor point of the icon
-                        popupAnchor: [1, -34] // Popup anchor point
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34]
                     });
 
-                    // Add request markers
                     if (data.requests && Array.isArray(data.requests)) {
-                        data.requests.forEach(request => {
+                        requestMarkers = data.requests.map(request => {
                             if (request.lat && request.lng) {
-                                L.marker([parseFloat(request.lat), parseFloat(request.lng)], { icon: requestIcon })
-                                    .addTo(map)
+                                return L.marker([parseFloat(request.lat), parseFloat(request.lng)], { icon: requestIcon })
                                     .bindPopup(`<b>Request by:</b> ${request.civilian_name}<br>
+                                        <b>Phone:</b> ${request.phone_number}<br>
                                         <b>Item:</b> ${request.item_name}<br>
-                                        <b>Quantity:</b> ${request.quantity_requested}`);
-                            } else {
-                                console.error('Invalid request coordinates:', request);
+                                        <b>Quantity:</b> ${request.quantity_requested}<br>
+                                        <b>Date Created:</b> ${request.date_created}`);
                             }
                         });
-                    } else {
-                        console.error('No requests data or data is not an array.');
                     }
 
-                    // Define offer icon
                     var offerIcon = L.icon({
                         iconUrl: '../pngs/offer_icon.png',
-                        iconSize: [25, 41], // Adjust size as needed
-                        iconAnchor: [12, 41], // Anchor point of the icon
-                        popupAnchor: [1, -34] // Popup anchor point
+                        iconSize: [25, 41],
+                        iconAnchor: [12, 41],
+                        popupAnchor: [1, -34]
                     });
 
-                    // Add offer markers
                     if (data.offers && Array.isArray(data.offers)) {
-                        data.offers.forEach(offer => {
+                        offerMarkers = data.offers.map(offer => {
                             if (offer.lat && offer.lng) {
-                                L.marker([parseFloat(offer.lat), parseFloat(offer.lng)], { icon: offerIcon })
-                                    .addTo(map)
+                                return L.marker([parseFloat(offer.lat), parseFloat(offer.lng)], { icon: offerIcon })
                                     .bindPopup(`<b>Offer by:</b> ${offer.civilian_name}<br>
+                                        <b>Phone:</b> ${offer.phone_number}<br>
                                         <b>Item:</b> ${offer.item_name}<br>
-                                        <b>Quantity:</b> ${offer.quantity_offered}`);
-                            } else {
-                                console.error('Invalid offer coordinates:', offer);
+                                        <b>Quantity:</b> ${offer.quantity_offered}<br>
+                                        <b>Date Created:</b> ${offer.date_created}`);
                             }
                         });
-                    } else {
-                        console.error('No offers data or data is not an array.');
+                    }
+
+                    if (data.connections && Array.isArray(data.connections)) {
+                        connectionLines = data.connections.map(connection => {
+                            return L.polyline([[parseFloat(connection.vehicle_lat), parseFloat(connection.vehicle_lng)], [parseFloat(connection.task_lat), parseFloat(connection.task_lng)]], {
+                                color: 'blue'
+                            });
+                        });
                     }
                 })
                 .catch(error => {
@@ -189,6 +211,79 @@
                 console.error('Error updating storage location:', error);
             });
         }
+
+        // Toggle filter functions
+        function toggleRequestMarkers() {
+            const showPending = document.getElementById('showPendingRequests').checked;
+            const showAssigned = document.getElementById('showAssignedRequests').checked;
+
+            requestMarkers.forEach(marker => {
+                if (marker && map.hasLayer(marker)) map.removeLayer(marker);
+                if (showPending || showAssigned) marker.addTo(map);
+            });
+        }
+
+        function toggleOfferMarkers() {
+            const showOffers = document.getElementById('showOffers').checked;
+            offerMarkers.forEach(marker => {
+                if (marker && map.hasLayer(marker)) map.removeLayer(marker);
+                if (showOffers) marker.addTo(map);
+            });
+        }
+
+        function toggleVehicleMarkers() {
+            const showWithTasks = document.getElementById('showVehiclesWithTasks').checked;
+            const showWithoutTasks = document.getElementById('showVehiclesWithoutTasks').checked;
+
+            vehicleMarkers.forEach(marker => {
+                if (marker && map.hasLayer(marker)) map.removeLayer(marker);
+                if (showWithTasks || showWithoutTasks) marker.addTo(map);
+            });
+        }
+
+        function toggleConnectionLines() {
+            const showLines = document.getElementById('showConnectionLines').checked;
+            connectionLines.forEach(line => {
+                if (line && map.hasLayer(line)) map.removeLayer(line);
+                if (showLines) line.addTo(map);
+            });
+        }
+
     </script>
+</head>
+<body>
+<header>
+    <h1>Admin Dashboard</h1>
+</header>
+
+<nav>
+    <a href="#" onclick="home()">Home</a>
+    <a href="#" onclick="users()">Users</a>
+    <a href="#" onclick="products()">Products</a>
+    <a href="#" onclick="announcement()">Announcements</a>
+    <a href="#" onclick="maap()">Map</a>
+    <a href="#" onclick="chart()">Chart</a>
+    
+</nav>
+
+<section>
+    <h2>Map Filters</h2>
+    <label><input type="checkbox" id="showPendingRequests" checked> Show Pending Requests</label><br>
+    <label><input type="checkbox" id="showAssignedRequests" checked> Show Assigned Requests</label><br>
+    <label><input type="checkbox" id="showOffers" checked> Show Offers</label><br>
+    <label><input type="checkbox" id="showVehiclesWithTasks" checked> Show Vehicles with Tasks</label><br>
+    <label><input type="checkbox" id="showVehiclesWithoutTasks" checked> Show Vehicles without Tasks</label><br>
+    <label><input type="checkbox" id="showConnectionLines" checked> Show Connection Lines</label><br>
+</section>
+
+<div id="mapContainer">
+    <div id="map"></div>
+</div>
+
+<footer>
+    &copy; 2024 Admin Dashboard <br><br><br>
+    <button onclick="logout()">Log Out</button>
+</footer>
+
 </body>
 </html>

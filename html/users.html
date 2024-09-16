@@ -1,35 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Volunteer Accounts</title>
-    <link rel="stylesheet" type="text/css" href="../css/users_stylesheet.css">
+    <link rel="stylesheet" type="text/css" href="../css/admin_stylesheet.css">
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            checkLoginStatus(); // Check if the user is logged in
+            const form = document.getElementById('createAccountForm');
+            const messageDiv = document.getElementById('message');
+            const usersTableBody = document.querySelector('#usersTable tbody');
+
+            // Handle form submission to create a new account
+            form.addEventListener('submit', function (event) {
+                event.preventDefault(); // Prevent the default form submission
+
+                const formData = new FormData(form);
+                const data = {};
+                formData.forEach((value, key) => {
+                    data[key] = value;
+                });
+
+                // Send the account creation request via AJAX
+                fetch('../php/create_account.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        messageDiv.textContent = data.message;
+                        if (data.message === 'User created successfully') {
+                            fetchUsers(); // Refresh the user list after creating a new user
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        messageDiv.textContent = 'An error occurred. Please try again.';
+                    });
+            });
+
+            // Function to check login status
+            function checkLoginStatus() {
+                fetch('../php/check_login.php', {
+                    method: 'GET',
+                    credentials: 'include' // Ensures session cookies are sent
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.loggedIn) {
+                            // Redirect to the login page if not logged in
+                            window.location.href = 'login.html';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking login status:', error);
+                        window.location.href = 'login.html'; // Redirect if there's an error
+                    });
+            }
+
+            // Function to log out
+            function logout() {
+                fetch('../php/logout.php', {
+                    method: 'GET',
+                    credentials: 'include' // Include session cookies
+                }).then(response => {
+                    if (response.ok) {
+                        sessionStorage.clear();
+                        localStorage.clear();
+                        window.location.href = 'login.html';
+                    } else {
+                        console.error('Logout failed');
+                    }
+                }).catch(error => {
+                    console.error('Error during logout:', error);
+                });
+            }
+
+            // Function to fetch and display users
+            function fetchUsers() {
+                fetch('../php/fetch_users.php')
+                    .then(response => response.json())
+                    .then(users => {
+                        // Clear existing rows
+                        usersTableBody.innerHTML = '';
+                        users.forEach(user => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${user.user_id}</td>
+                                <td>${user.username}</td>
+                                <td>${user.fullname}</td>
+                                <td>${user.phone_number}</td>
+                                <td>${user.user_type}</td>
+                            `;
+                            usersTableBody.appendChild(row);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error fetching users:', error);
+                    });
+            }
+
+            // Fetch users when the page loads
+            fetchUsers();
+        });
+        function home() {
+            window.location.href = 'admin.html';
+        }
+
+        function maap() {
+            window.location.href = 'map.html';
+        }
+
+        function products() {
+            window.location.href = 'products.html';
+        }
+
+        function announcement() {
+            window.location.href = 'admin_announcement.html';
+        }
+
+        function users() {
+            window.location.href = 'users.html';
+        }
+        
+        function chart() {
+            window.location.href = 'chart.html';
+        }
+    </script>
+
 </head>
+
 <body>
+    <header>
+        <h1> Admin Dashboard</h1>
+    </header>
 
     <nav>
-        <a href="admin.html">Home</a>
-        <a href="users.html">Users</a>
-        <a href="products.html">Products</a>
-        <a href="settings.html">Settings</a>
-        <a href="posts.html">Posts</a>
-        <a href="map.html">Map</a>
+        <a href="#" onclick="home()">Home</a>
+        <a href="#" onclick="users()">Users</a>
+        <a href="#" onclick="products()">Products</a>
+        <a href="#" onclick="announcement()">Announcements</a>
+        <a href="#" onclick="maap()">Map</a>
+        <a href="#" onclick="chart()">Chart</a>
+        
     </nav>
-    
+
     <section>
         <h2>Create Volunteer Accounts</h2>
-        <form id="createAccountForm" action="../php/create_account.php" method="POST">
+        <form id="createAccountForm">
             <div class="form-group">
                 <label for="username">Username:</label>
                 <input type="text" id="username" name="username" required>
             </div>
-        
+
             <div class="form-group">
                 <label for="password">Password:</label>
                 <input type="password" id="password" name="password" required>
             </div>
-        
+
             <div class="form-group">
                 <label for="fullname">Full Name:</label>
                 <input type="text" id="fullname" name="fullname">
@@ -40,10 +173,9 @@
                 <input type="text" id="phone_number" name="phone_number">
             </div>
 
-        
             <button type="submit">Create Account</button>
         </form>
-        
+
         <div id="message"></div>
     </section>
 
@@ -65,70 +197,10 @@
         </table>
     </section>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const form = document.getElementById('createAccountForm');
-        const messageDiv = document.getElementById('message');
-        const usersTableBody = document.querySelector('#usersTable tbody');
-        
-        form.addEventListener('submit', function (event) {
-            event.preventDefault(); // Prevent the default form submission
-            
-            const formData = new FormData(form);
-            const data = {};
-            formData.forEach((value, key) => {
-                data[key] = value;
-            });
-            
-            fetch('../php/create_account.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Show the response message
-                messageDiv.textContent = data.message;
-                if (data.message === 'User created successfully') {
-                    fetchUsers(); // Refresh the user list after creating a new user
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                messageDiv.textContent = 'An error occurred. Please try again.';
-            });
-        });
-
-        // Function to fetch and display users
-        function fetchUsers() {
-            fetch('../php/fetch_users.php')
-                .then(response => response.json())
-                .then(users => {
-                    // Clear existing rows
-                    usersTableBody.innerHTML = '';
-                    users.forEach(user => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${user.user_id}</td>
-                            <td>${user.username}</td>
-                            <td>${user.fullname}</td>
-                            <td>${user.phone_number}</td>
-                            <td>${user.user_type}</td>
-                        `;
-                        usersTableBody.appendChild(row);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
-        }
-
-        // Fetch users when the page loads
-        fetchUsers();
-    });
-    </script>
-
+    <footer>
+        &copy; 2024 Admin Dashboard <br><br><br>
+        <button onclick="logout()">Log Out</button>
+    </footer>
 </body>
+
 </html>
