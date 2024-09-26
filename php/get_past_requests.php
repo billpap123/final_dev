@@ -2,59 +2,52 @@
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json");
 
-// Start the session (if using session-based authentication)
+// Start the session
 session_start();
 
-// Ensure user is logged in (session or other authentication)
+// Ensure user is logged in
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(["error" => "User not logged in"]);
     exit;
 }
 
-// Get the logged-in user's ID (from session or request parameter)
-$user_id = $_SESSION['user_id']; // Or retrieve from request parameter
+// Get the logged-in user's ID
+$user_id = $_SESSION['user_id'];
 
 // Database connection details
-$servername = "localhost";
-$username = "root";
-$password = "";
-$dbname = "finaldb";
+$host = 'localhost';
+$db = 'finaldb';
+$user = 'root';
+$pass = '';
 
-// Create connection
-$con = new mysqli($servername, $username, $password, $dbname);
+try {
+    // Create PDO connection
+    $conn = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-// Check connection
-if ($con->connect_error) {
-    echo json_encode(["error" => "Connection failed: " . $con->connect_error]);
-    exit;
-}
+    // Fetch past requests for the logged-in user with statuses 'Completed' or 'Cancelled'
+    $sql = "SELECT r.request_id, i.item_name, r.quantity_requested, r.date_created, r.status, r.num_of_people
+            FROM requests r
+            JOIN items i ON r.item_id = i.item_id
+            WHERE r.status IN ('Completed', 'Cancelled') AND r.civilian_id = :user_id";
 
-// Fetch past requests for the logged-in user
-$sql = "SELECT request_id, item_id, quantity_requested, date_created, status, num_of_people 
-        FROM requests 
-        WHERE status = 'Completed' AND civilian_id = ?";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
+    $stmt->execute();
 
-// Prepare and bind the statement to prevent SQL injection
-$stmt = $con->prepare($sql);
-$stmt->bind_param("i", $user_id); // Bind the user_id
+    $requests = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$stmt->execute();
-$result = $stmt->get_result();
-
-$requests = [];
-
-if ($result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $requests[] = $row;
+    // Check if any requests are found
+    if ($requests) {
+        echo json_encode(['requests' => $requests]);
+    } else {
+        echo json_encode(['error' => 'No past requests found']);
     }
-} else {
-    echo json_encode(['error' => 'No past requests found']);
-    exit;
+
+} catch (PDOException $e) {
+    echo json_encode(['error' => 'Error fetching requests: ' . $e->getMessage()]);
 }
 
-echo json_encode(['requests' => $requests]);
-
-// Close connection
-$stmt->close();
-$con->close();
+// Close the connection
+$conn = null;
 ?>

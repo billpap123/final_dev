@@ -2,7 +2,6 @@
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json");
 
-// Database connection
 $con = mysqli_connect("localhost", "root", "", "finaldb");
 
 if (!$con) {
@@ -17,7 +16,6 @@ if ($searchTerm == '') {
     exit;
 }
 
-// Search for items
 $sql = "SELECT item_id, item_name FROM items WHERE item_name LIKE '%$searchTerm%'";
 $result = mysqli_query($con, $sql);
 

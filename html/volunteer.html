@@ -16,15 +16,15 @@
     <nav>
         <a href="#" onclick="home()">Home</a>
         <a href="#" onclick="vehicle()">My Vehicle</a>
-        <a href="#" onclick="announcement()">Announcements</a>
         <a href="#" onclick="map()">Map</a>
         <a href="#" onclick="logout()">Logout</a>
     </nav>
 
     <section>
         <h2>Welcome</h2>
-        <!-- Content for the dashboard -->
     </section>
+
+    <div class="error-message" style="color: red;"></div>
 
     <script>
         function home() {
@@ -40,18 +40,25 @@
         }
 
         function logout() {
-            fetch('../php/logout.php')
-                .then(response => response.json())
-                .then(data => {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/logout.php", true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
                     if (data.success) {
                         window.location.href = 'login.html';
                     } else {
                         document.querySelector('.error-message').textContent = 'Error logging out: ' + data.error;
                     }
-                })
-                .catch(error => {
-                    console.error('Error logging out:', error);
-                });
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('Error logging out');
+                document.querySelector('.error-message').textContent = 'Error logging out. Please try again.';
+            };
+
+            xhr.send();
         }
     </script>
 </body>

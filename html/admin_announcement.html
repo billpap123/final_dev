@@ -8,46 +8,49 @@
     
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Check if the user is logged in when the page loads
+           
             checkLoginStatus();
             loadItems();
         });
 
         function checkLoginStatus() {
-            fetch('../php/check_login.php', {
-                method: 'GET',
-                credentials: 'include' // Ensures session cookies are sent
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.loggedIn) {
-                    // Redirect to the login page if not logged in
-                    window.location.href = 'login.html';
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/check_login.php", true);
+            xhr.withCredentials = true; 
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    if (!data.loggedIn) {
+                        window.location.href = 'login.html';
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error checking login status:', error);
-                window.location.href = 'login.html'; // Redirect if there's an error
-            });
+            };
+            xhr.onerror = function() {
+                console.error('Error checking login status');
+                window.location.href = 'login.html'; 
+            };
+            xhr.send();
         }
-       
+
         function logout() {
-            fetch('../php/logout.php', {
-                method: 'GET',
-                credentials: 'include'
-            }).then(response => {
-                if (response.ok) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/logout.php", true);
+            xhr.withCredentials = true; 
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
                     sessionStorage.clear();
                     localStorage.clear();
                     window.location.href = 'login.html';
                 } else {
                     console.error('Logout failed');
                 }
-            }).catch(error => {
-                console.error('Error during logout:', error);
-            });
+            };
+            xhr.onerror = function() {
+                console.error('Error during logout');
+            };
+            xhr.send();
         }
-        
+
         function home() {
             window.location.href = 'admin.html';
         }
@@ -55,7 +58,6 @@
         function map() {
             window.location.href = 'map.html';
         }
-        
         
         function products() {
             window.location.href = 'products.html';
@@ -68,24 +70,31 @@
         function users() {
             window.location.href = 'users.html';
         }
+
         function chart() {
             window.location.href = 'chart.html';
         }
 
         function loadItems() {
-            fetch('../php/get_items.php')
-                .then(response => response.json())
-                .then(data => {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/get_items.php", true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
                     if (data.items) {
                         populateItemSelect(data.items);
                     }
-                })
-                .catch(error => console.error('Error fetching items:', error));
+                }
+            };
+            xhr.onerror = function() {
+                console.error('Error fetching items');
+            };
+            xhr.send();
         }
 
         function populateItemSelect(items) {
             const itemSelect = document.getElementById('itemSelect');
-            itemSelect.innerHTML = '<option value="">Select Item</option>'; // Clear previous items
+            itemSelect.innerHTML = '<option value="">Select Item</option>'; 
             items.forEach(item => {
                 const option = document.createElement('option');
                 option.value = item.item_id;
@@ -99,21 +108,26 @@
             const quantityNeeded = document.getElementById('quantityNeeded').value;
 
             if (itemId && quantityNeeded > 0) {
-                fetch('../php/submit_announcement.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ item_id: itemId, quantity_needed: quantityNeeded }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('announcementMessage').textContent = 'Announcement created successfully!';
-                    } else {
-                        document.getElementById('announcementMessage').textContent = 'Error creating announcement.';
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "../php/submit_announcement.php", true);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+                
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            document.getElementById('announcementMessage').textContent = 'Announcement created successfully!';
+                        } else {
+                            document.getElementById('announcementMessage').textContent = 'Error creating announcement.';
+                        }
                     }
-                });
+                };
+                
+                xhr.onerror = function() {
+                    console.error('Error during announcement submission');
+                };
+                
+                xhr.send(JSON.stringify({ item_id: itemId, quantity_needed: quantityNeeded }));
             } else {
                 document.getElementById('announcementMessage').textContent = 'Please select an item and specify the quantity needed.';
             }
@@ -141,7 +155,6 @@
     <div>
         <label for="itemSelect">Select Item:</label>
         <select id="itemSelect">
-            <!-- Items will be dynamically populated -->
         </select>
     </div>
 

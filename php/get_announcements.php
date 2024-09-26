@@ -4,36 +4,45 @@ header('Content-Type: application/json');
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Database connection
-$con = mysqli_connect("localhost", "root", "", "finaldb");
 
-// Check connection
-if (!$con) {
-    echo json_encode(['error' => 'Database connection failed: ' . mysqli_connect_error()]);
+$host = 'localhost';
+$db = 'finaldb';
+$user = 'root';
+$pass = '';
+
+try {
+
+    $conn = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo json_encode(['error' => 'Database connection failed: ' . $e->getMessage()]);
     exit();
 }
 
-// Check if user is logged in
+
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['error' => 'User not logged in']);
     exit();
 }
 
-// Fetch announcements
-$query = "SELECT a.announcement_id, i.item_name, a.quantity_needed, a.date_created 
-          FROM announcement a 
-          JOIN items i ON a.item_id = i.item_id";
-$result = mysqli_query($con, $query);
+try {
 
-if ($result) {
-    $announcements = [];
-    while ($row = mysqli_fetch_assoc($result)) {
-        $announcements[] = $row;
-    }
+    $query = "SELECT a.announcement_id, i.item_name, a.quantity_needed, a.date_created 
+              FROM announcement a 
+              JOIN items i ON a.item_id = i.item_id";
+    $stmt = $conn->prepare($query);
+    $stmt->execute();
+
+
+    $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
     echo json_encode(['announcements' => $announcements]);
-} else {
-    echo json_encode(['error' => 'Error fetching announcements: ' . mysqli_error($con)]);
+
+} catch (PDOException $e) {
+    echo json_encode(['error' => 'Error fetching announcements: ' . $e->getMessage()]);
 }
 
-mysqli_close($con);
+
+$conn = null;
 ?>

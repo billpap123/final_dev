@@ -46,97 +46,118 @@
     });
 
     function checkLoginStatus() {
-            fetch('../php/check_login.php', {
-                method: 'GET',
-                credentials: 'include' // Ensures session cookies are sent
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.loggedIn) {
-                    // Redirect to the login page if not logged in
-                    window.location.href = 'login.html';
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "../php/check_login.php", true);
+        xhr.withCredentials = true;  
+
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (!data.loggedIn) {
+                        window.location.href = 'login.html'; 
+                    }
+                } catch (error) {
+                    console.error('Error parsing login response:', error);
+                    window.location.href = 'login.html';  
                 }
-            })
-            .catch(error => {
-                console.error('Error checking login status:', error);
-                window.location.href = 'login.html'; // Redirect if there's an error
-            });
-        }
+            }
+        };
 
+        xhr.onerror = function() {
+            console.error('Error checking login status');
+            window.location.href = 'login.html';  
+        };
 
+        xhr.send();
+    }
 
-        function logout() {
-            fetch('../php/logout.php', {
-                method: 'GET',
-                credentials: 'include' // Include session cookies
-            }).then(response => {
-                if (response.ok) {
-                    sessionStorage.clear();
-                    localStorage.clear();
-                    window.location.href = 'login.html';
-                } else {
-                    console.error('Logout failed');
-                }
-            }).catch(error => {
-                console.error('Error during logout:', error);
-            });
-        }
+    function logout() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "../php/logout.php", true);
+        xhr.withCredentials = true;  
 
- 
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                sessionStorage.clear();
+                localStorage.clear();
+                window.location.href = 'login.html';
+            } else {
+                console.error('Logout failed');
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('Error during logout');
+        };
+
+        xhr.send();
+    }
+
     function home() {
-            window.location.href = 'admin.html';
-        }
-        
-        function map() {
-            window.location.href = 'map.html';
-        }
-        
-        
-        function products() {
-            window.location.href = 'products.html';
-        }
-        
-        function announcement() {
-            window.location.href = 'admin_announcement.html';
-        }
-        
-        function users() {
-            window.location.href = 'users.html';
-        }
-        function chart() {
-            window.location.href = 'chart.html';
-        }
+        window.location.href = 'admin.html';
+    }
+
+    function map() {
+        window.location.href = 'map.html';
+    }
+
+    function products() {
+        window.location.href = 'products.html';
+    }
+
+    function announcement() {
+        window.location.href = 'admin_announcement.html';
+    }
+
+    function users() {
+        window.location.href = 'users.html';
+    }
+
+    function chart() {
+        window.location.href = 'chart.html';
+    }
 
     function fetchServiceData() {
-        fetch('../php/get_service_statistics.php')  // PHP file that fetches statistics
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Error fetching data:', data.error);
-                    return;
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "../php/get_service_statistics.php", true);
+        
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.error) {
+                        console.error('Error fetching data:', data.error);
+                        return;
+                    }
+                    displayChart(data);
+                } catch (error) {
+                    console.error('Error parsing statistics data:', error);
                 }
-                
-                displayChart(data);
-            })
-            .catch(error => {
-                console.error('Error fetching statistics:', error);
-            });
+            }
+        };
+
+        xhr.onerror = function() {
+            console.error('Error fetching statistics');
+        };
+
+        xhr.send();
     }
 
     function displayChart(data) {
         const ctx = document.getElementById('serviceChart').getContext('2d');
         new Chart(ctx, {
-            type: 'bar',  // or 'line', 'pie', etc.
+            type: 'bar',  
             data: {
                 labels: ['New Requests', 'New Offers', 'Completed Requests', 'Completed Offers'],
                 datasets: [{
                     label: '',
                     data: [data.new_requests, data.new_offers, data.completed_requests, data.completed_offers],
                     backgroundColor: [
-                        'rgba(54, 162, 235, 0.6)',  // New Requests
-                        'rgba(75, 192, 192, 0.6)',  // New Offers
-                        'rgba(255, 99, 132, 0.6)',  // Completed Requests
-                        'rgba(153, 102, 255, 0.6)'  // Completed Offers
+                        'rgba(54, 162, 235, 0.6)',  
+                        'rgba(75, 192, 192, 0.6)',  
+                        'rgba(255, 99, 132, 0.6)',  
+                        'rgba(153, 102, 255, 0.6)'  
                     ],
                     borderColor: [
                         'rgba(54, 162, 235, 1)',
@@ -157,8 +178,6 @@
         });
     }
 </script>
-
-
 
 <footer>
     &copy; 2024 Admin Dashboard <br><br><br>

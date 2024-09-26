@@ -7,11 +7,12 @@
     <link rel="stylesheet" type="text/css" href="../css/admin_stylesheet.css">
 </head>
 <body>
+    <header>
     <h1>Manage My Vehicle</h1>
+</header>
     <nav>
         <a href="#" onclick="home()">Home</a>
         <a href="#" onclick="vehicle()">My Vehicle</a>
-        <a href="#" onclick="announcement()">Announcements</a>
         <a href="#" onclick="map()">Map</a>
         <a href="#" onclick="logout()">Logout</a> 
     </nav>
@@ -63,78 +64,88 @@
         }
 
         function checkVehicleEnrollment() {
-    fetch('../php/check_vehicle_enrollment.php')
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                console.error('Error:', data.error);
-                return;
-            }
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/check_vehicle_enrollment.php", true);
 
-            if (data.requiresEnrollment) {
-                showSection('enrollVehicleSection');
-            } else if (data.vehicle) {
-                const vehicleDetails = `Vehicle Name: ${data.vehicle.vehicle_name}, Location: ${data.vehicle.current_location}`;
-                document.getElementById('vehicleDetails').innerText = vehicleDetails;
-                document.getElementById('editVehicleName').value = data.vehicle.vehicle_name; // Populate the edit form
-                document.getElementById('removeVehicleButton').style.display = 'block';
-                showSection('manageVehicleSection');
-            } else {
-                showSection('enrollVehicleSection');
-            }
-        })
-        .catch(error => {
-            console.error('Error checking vehicle enrollment:', error);
-        });
-}
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.error) {
+                        console.error('Error:', data.error);
+                        return;
+                    }
 
+                    if (data.requiresEnrollment) {
+                        showSection('enrollVehicleSection');
+                    } else if (data.vehicle) {
+                        const vehicleDetails = `Vehicle Name: ${data.vehicle.vehicle_name}, Location: ${data.vehicle.current_location}`;
+                        document.getElementById('vehicleDetails').innerText = vehicleDetails;
+                        document.getElementById('editVehicleName').value = data.vehicle.vehicle_name;
+                        document.getElementById('removeVehicleButton').style.display = 'block';
+                        showSection('manageVehicleSection');
+                    } else {
+                        showSection('enrollVehicleSection');
+                    }
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('Error checking vehicle enrollment');
+            };
+
+            xhr.send();
+        }
 
         function submitVehicleEnrollment() {
             const vehicleName = document.getElementById('vehicleName').value;
 
-            fetch('../php/enroll_vehicle.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ vehicleName })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('enrollmentMessage').textContent = 'Vehicle enrolled successfully!';
-                    checkVehicleEnrollment();
-                } else {
-                    document.getElementById('enrollmentMessage').textContent = 'Error enrolling vehicle: ' + data.error;
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/enroll_vehicle.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        document.getElementById('enrollmentMessage').textContent = 'Vehicle enrolled successfully!';
+                        checkVehicleEnrollment();
+                    } else {
+                        document.getElementById('enrollmentMessage').textContent = 'Error enrolling vehicle: ' + data.error;
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error enrolling vehicle:', error);
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error enrolling vehicle');
+            };
+
+            xhr.send(JSON.stringify({ vehicleName }));
         }
 
         function removeVehicle() {
-            fetch('../php/remove_vehicle.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('vehicleDetails').innerText = '';
-                    document.getElementById('removeVehicleButton').style.display = 'none';
-                    document.getElementById('enrollmentMessage').textContent = 'Vehicle removed successfully!';
-                    showSection('enrollVehicleSection');
-                } else {
-                    document.getElementById('enrollmentMessage').textContent = 'Error removing vehicle: ' + data.error;
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/remove_vehicle.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        document.getElementById('vehicleDetails').innerText = '';
+                        document.getElementById('removeVehicleButton').style.display = 'none';
+                        document.getElementById('enrollmentMessage').textContent = 'Vehicle removed successfully!';
+                        showSection('enrollVehicleSection');
+                    } else {
+                        document.getElementById('enrollmentMessage').textContent = 'Error removing vehicle: ' + data.error;
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error removing vehicle:', error);
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error removing vehicle');
+            };
+
+            xhr.send(JSON.stringify({}));
         }
 
         function showEditForm() {
@@ -144,46 +155,50 @@
         function submitVehicleUpdate() {
             const newVehicleName = document.getElementById('editVehicleName').value;
 
-            fetch('../php/update_vehicle.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ vehicleName: newVehicleName })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('enrollmentMessage').textContent = 'Vehicle updated successfully!';
-                    checkVehicleEnrollment(); // Refresh details
-                } else {
-                    document.getElementById('enrollmentMessage').textContent = 'Error updating vehicle: ' + data.error;
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/update_vehicle.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        document.getElementById('enrollmentMessage').textContent = 'Vehicle updated successfully!';
+                        checkVehicleEnrollment();
+                    } else {
+                        document.getElementById('enrollmentMessage').textContent = 'Error updating vehicle: ' + data.error;
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error updating vehicle:', error);
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error updating vehicle');
+            };
+
+            xhr.send(JSON.stringify({ vehicleName: newVehicleName }));
         }
 
         function logout() {
-            fetch('../php/logout.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({})
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.href = 'login.html'; // Redirect to login page
-                } else {
-                    console.error('Error logging out:', data.error);
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/logout.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        window.location.href = 'login.html';
+                    } else {
+                        console.error('Error logging out:', data.error);
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error logging out:', error);
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error logging out');
+            };
+
+            xhr.send(JSON.stringify({}));
         }
     </script>
 </body>

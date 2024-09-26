@@ -8,14 +8,14 @@
     <link rel="stylesheet" type="text/css" href="../css/admin_stylesheet.css">
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            checkLoginStatus(); // Check if the user is logged in
+            checkLoginStatus(); 
             const form = document.getElementById('createAccountForm');
             const messageDiv = document.getElementById('message');
             const usersTableBody = document.querySelector('#usersTable tbody');
 
-            // Handle form submission to create a new account
+            
             form.addEventListener('submit', function (event) {
-                event.preventDefault(); // Prevent the default form submission
+                event.preventDefault();
 
                 const formData = new FormData(form);
                 const data = {};
@@ -23,70 +23,82 @@
                     data[key] = value;
                 });
 
-                // Send the account creation request via AJAX
-                fetch('../php/create_account.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        messageDiv.textContent = data.message;
-                        if (data.message === 'User created successfully') {
-                            fetchUsers(); // Refresh the user list after creating a new user
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "../php/create_account.php", true);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        messageDiv.textContent = response.message;
+                        if (response.message === 'User created successfully') {
+                            fetchUsers(); 
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        messageDiv.textContent = 'An error occurred. Please try again.';
-                    });
+                    }
+                };
+
+                xhr.onerror = function () {
+                    console.error('Error during account creation');
+                    messageDiv.textContent = 'An error occurred. Please try again.';
+                };
+
+                xhr.send(JSON.stringify(data));
             });
 
-            // Function to check login status
+            
             function checkLoginStatus() {
-                fetch('../php/check_login.php', {
-                    method: 'GET',
-                    credentials: 'include' // Ensures session cookies are sent
-                })
-                    .then(response => response.json())
-                    .then(data => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "../php/check_login.php", true);
+                xhr.withCredentials = true;
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var data = JSON.parse(xhr.responseText);
                         if (!data.loggedIn) {
-                            // Redirect to the login page if not logged in
                             window.location.href = 'login.html';
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error checking login status:', error);
-                        window.location.href = 'login.html'; // Redirect if there's an error
-                    });
+                    }
+                };
+
+                xhr.onerror = function () {
+                    console.error('Error checking login status');
+                    window.location.href = 'login.html';
+                };
+
+                xhr.send();
             }
 
-            // Function to log out
+            
             function logout() {
-                fetch('../php/logout.php', {
-                    method: 'GET',
-                    credentials: 'include' // Include session cookies
-                }).then(response => {
-                    if (response.ok) {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "../php/logout.php", true);
+                xhr.withCredentials = true;
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
                         sessionStorage.clear();
                         localStorage.clear();
                         window.location.href = 'login.html';
                     } else {
                         console.error('Logout failed');
                     }
-                }).catch(error => {
-                    console.error('Error during logout:', error);
-                });
+                };
+
+                xhr.onerror = function () {
+                    console.error('Error during logout');
+                };
+
+                xhr.send();
             }
 
             // Function to fetch and display users
             function fetchUsers() {
-                fetch('../php/fetch_users.php')
-                    .then(response => response.json())
-                    .then(users => {
-                        // Clear existing rows
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", "../php/fetch_users.php", true);
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var users = JSON.parse(xhr.responseText);
                         usersTableBody.innerHTML = '';
                         users.forEach(user => {
                             const row = document.createElement('tr');
@@ -99,15 +111,20 @@
                             `;
                             usersTableBody.appendChild(row);
                         });
-                    })
-                    .catch(error => {
-                        console.error('Error fetching users:', error);
-                    });
+                    }
+                };
+
+                xhr.onerror = function () {
+                    console.error('Error fetching users');
+                };
+
+                xhr.send();
             }
 
             // Fetch users when the page loads
             fetchUsers();
         });
+
         function home() {
             window.location.href = 'admin.html';
         }
@@ -127,7 +144,7 @@
         function users() {
             window.location.href = 'users.html';
         }
-        
+
         function chart() {
             window.location.href = 'chart.html';
         }
@@ -137,7 +154,7 @@
 
 <body>
     <header>
-        <h1> Admin Dashboard</h1>
+        <h1>Admin Dashboard</h1>
     </header>
 
     <nav>
@@ -147,7 +164,6 @@
         <a href="#" onclick="announcement()">Announcements</a>
         <a href="#" onclick="maap()">Map</a>
         <a href="#" onclick="chart()">Chart</a>
-        
     </nav>
 
     <section>

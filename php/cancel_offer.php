@@ -8,7 +8,6 @@ session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
-ini_set('error_log', '/path/to/your/error.log');  // Update with the path to your error log
 
 $host = 'localhost';
 $db = 'finaldb';
@@ -26,7 +25,7 @@ try {
 
     $user_id = $_SESSION['user_id'];
 
-    // Fetch vehicle ID based on the logged-in user
+    
     $stmt = $conn->prepare("SELECT vehicle_id FROM vehicle WHERE volunteer_id = ?");
     $stmt->bindParam(1, $user_id, PDO::PARAM_INT);
     $stmt->execute();

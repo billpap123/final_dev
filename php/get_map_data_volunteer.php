@@ -1,5 +1,4 @@
-<?php
-// Allow from any origin
+<?php 
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -39,25 +38,41 @@ try {
     $vehicleQuery->execute([$logged_in_user_id]);
     $vehicles = $vehicleQuery->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch requests (assuming you still want to see all requests)
-    $requestQuery = $conn->query("SELECT r.request_id, u.fullname AS civilian_name, i.item_name, r.quantity_requested, ST_X(u.location) AS lat, ST_Y(u.location) AS lng
+    // Fetch pending requests
+    $pendingRequestQuery = $conn->query("SELECT r.request_id, u.fullname AS civilian_name, i.item_name, r.quantity_requested, ST_X(u.location) AS lat, ST_Y(u.location) AS lng
         FROM requests r
         JOIN user u ON r.civilian_id = u.user_id
         JOIN items i ON r.item_id = i.item_id
-        WHERE r.status = 'pending'");
-    $requests = $requestQuery->fetchAll(PDO::FETCH_ASSOC);
+        WHERE r.status = 'Pending'");
+    $pendingRequests = $pendingRequestQuery->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch offers (assuming you still want to see all offers)
-    $offerQuery = $conn->query("SELECT o.offer_id, u.fullname AS civilian_name, i.item_name, o.quantity_offered, ST_X(u.location) AS lat, ST_Y(u.location) AS lng
+    // Fetch processing requests
+    $processingRequestQuery = $conn->query("SELECT r.request_id, u.fullname AS civilian_name, i.item_name, r.quantity_requested, ST_X(u.location) AS lat, ST_Y(u.location) AS lng
+        FROM requests r
+        JOIN user u ON r.civilian_id = u.user_id
+        JOIN items i ON r.item_id = i.item_id
+        WHERE r.status = 'Processing'");
+    $processingRequests = $processingRequestQuery->fetchAll(PDO::FETCH_ASSOC);
+
+    // Fetch pending offers
+    $pendingOfferQuery = $conn->query("SELECT o.offer_id, u.fullname AS civilian_name, i.item_name, o.quantity_offered, ST_X(u.location) AS lat, ST_Y(u.location) AS lng
         FROM offers o
         JOIN user u ON o.civilian_id = u.user_id
         JOIN items i ON o.item_id = i.item_id
-        WHERE o.status = 'pending'");
-    $offers = $offerQuery->fetchAll(PDO::FETCH_ASSOC);
+        WHERE o.status = 'Pending'");
+    $pendingOffers = $pendingOfferQuery->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch active tasks and their connections to the logged-in volunteer's vehicle (requests or offers)
+    // Fetch processing offers
+    $processingOfferQuery = $conn->query("SELECT o.offer_id, u.fullname AS civilian_name, i.item_name, o.quantity_offered, ST_X(u.location) AS lat, ST_Y(u.location) AS lng
+        FROM offers o
+        JOIN user u ON o.civilian_id = u.user_id
+        JOIN items i ON o.item_id = i.item_id
+        WHERE o.status = 'Processing'");
+    $processingOffers = $processingOfferQuery->fetchAll(PDO::FETCH_ASSOC);
+
+    // Fetch processing tasks and their connections to the logged-in volunteer's vehicle (requests or offers)
     $connectionQuery = $conn->prepare("
-        SELECT v.vehicle_id, ST_X(v.current_location) AS vehicle_lat, ST_Y(v.current_location) AS vehicle_lng,
+        SELECT t.task_id, v.vehicle_id, v.vehicle_name, ST_X(v.current_location) AS vehicle_lat, ST_Y(v.current_location) AS vehicle_lng,
                CASE 
                     WHEN t.request_id IS NOT NULL THEN ST_X(u.location) 
                     ELSE ST_X(u2.location) 
@@ -65,14 +80,29 @@ try {
                CASE 
                     WHEN t.request_id IS NOT NULL THEN ST_Y(u.location) 
                     ELSE ST_Y(u2.location) 
-               END AS task_lng
+               END AS task_lng,
+               t.type, t.status, t.assigned_date,  -- Added t.assigned_date here
+               CASE
+                    WHEN t.request_id IS NOT NULL THEN r.quantity_requested
+                    ELSE o.quantity_offered
+               END AS quantity,
+               CASE
+                    WHEN t.request_id IS NOT NULL THEN 'Request'
+                    ELSE 'Offer'
+               END AS task_type,
+               CASE
+                    WHEN t.request_id IS NOT NULL THEN i.item_name  -- Fetch item_name for requests
+                    ELSE i2.item_name  -- Fetch item_name for offers
+               END AS item_name  -- Alias it as item_name
         FROM vehicle v
-        JOIN tasks t ON v.current_task = t.task_id
+        JOIN tasks t ON v.vehicle_id = t.vehicle_id
         LEFT JOIN requests r ON t.request_id = r.request_id
         LEFT JOIN offers o ON t.offer_id = o.offer_id
         LEFT JOIN user u ON r.civilian_id = u.user_id
         LEFT JOIN user u2 ON o.civilian_id = u2.user_id
-        WHERE v.status = 'Busy' AND v.volunteer_id = ?
+        LEFT JOIN items i ON r.item_id = i.item_id  -- Join items table for requests
+        LEFT JOIN items i2 ON o.item_id = i2.item_id  -- Join items table for offers
+        WHERE t.status = 'Processing' AND v.volunteer_id = ?
     ");
     $connectionQuery->execute([$logged_in_user_id]);
     $connections = $connectionQuery->fetchAll(PDO::FETCH_ASSOC);
@@ -81,9 +111,11 @@ try {
     $response = [
         'storage' => $storage,
         'vehicles' => $vehicles, // Only show the logged-in volunteer's vehicle
-        'requests' => $requests,
-        'offers' => $offers,
-        'connections' => $connections // Add connections between the volunteer's vehicle and tasks
+        'pending_requests' => $pendingRequests,
+        'processing_requests' => $processingRequests,
+        'pending_offers' => $pendingOffers,
+        'processing_offers' => $processingOffers,
+        'connections' => $connections // Add connections between the volunteer's vehicle and processing tasks
     ];
 
     // Send response as JSON

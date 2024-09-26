@@ -27,37 +27,45 @@
     
     <script>
         document.getElementById('loginForm').addEventListener('submit', function (event) {
-            event.preventDefault(); // Prevent default form submission
+            event.preventDefault(); 
 
-            fetch('../php/login.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username: document.getElementById('username').value,
-                    password: document.getElementById('password').value
-                })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        // Handle successful login
-                        if (data.user_type === 'Admin') {
-                            window.location.href = '../html/admin.html';
-                        } else if (data.user_type === 'Volunteer') {
-                            window.location.href = '../html/volunteer.html';
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/login.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            
+                            if (data.user_type === 'Admin') {
+                                window.location.href = '../html/admin.html';
+                            } else if (data.user_type === 'Volunteer') {
+                                window.location.href = '../html/volunteer.html';
+                            } else {
+                                window.location.href = '../html/civ.html';
+                            }
                         } else {
-                            window.location.href = '../html/civ.html';
+                            
+                            alert(data.error);
                         }
-                    } else {
-                        // Handle errors
-                        alert(data.error);
+                    } catch (error) {
+                        console.error('Error parsing login response:', error);
                     }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
+                }
+            };
+
+            xhr.onerror = function () {
+                console.error('Error during login request');
+            };
+
+            var data = JSON.stringify({
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value
+            });
+
+            xhr.send(data);
         });
     </script>
 </body>

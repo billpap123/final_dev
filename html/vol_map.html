@@ -5,87 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volunteer Map</title>
-    <style>
-        body {
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 100vh;
-        }
-
-        nav {
-            width: 100%;
-            background-color: #333;
-            padding: 10px 0;
-            display: flex;
-            justify-content: center;
-        }
-
-        nav a {
-            color: white;
-            padding: 14px 20px;
-            text-decoration: none;
-            text-align: center;
-        }
-
-        nav a:hover {
-            background-color: #575757;
-        }
-
-        #mapContainer {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-grow: 1;
-            width: 100%;
-        }
-
-        #map {
-            height: 400px;
-            width: 80%;
-        }
-
-        .popup-buttons {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .popup-buttons button {
-            margin: 5px 0;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .complete-button {
-            background-color: #4CAF50;
-            color: #fff;
-        }
-
-        .complete-button:hover {
-            background-color: #45a049;
-        }
-
-        .cancel-button {
-            background-color: #f44336;
-            color: #fff;
-        }
-
-        .cancel-button:hover {
-            background-color: #e53935;
-        }
-
-        .serve-button {
-            background-color: #2196F3;
-            color: #fff;
-        }
-
-        .serve-button:hover {
-            background-color: #1e88e5;
-        }
-    </style>
+    <link rel="stylesheet" href="../css/map_stylesheet.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -94,9 +14,15 @@
     <script>
         document.addEventListener("DOMContentLoaded", function () {
             mapStart();
+            checkLoginStatus();
         });
 
         let map;
+        let pendingRequestsLayer = L.layerGroup();
+        let processingRequestsLayer = L.layerGroup();
+        let pendingOffersLayer = L.layerGroup();
+        let processingOffersLayer = L.layerGroup();
+        let connectionLines = [];
 
         function mapStart() {
             if (map) {
@@ -112,29 +38,43 @@
                 attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             }).addTo(map);
 
-            fetch('../php/get_map_data_volunteer.php')
-                .then(response => response.json())
-                .then(data => {
+            fetchMapData();
+        }
+
+        function fetchMapData() {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/get_map_data_volunteer.php", true);
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
                     if (data.error) {
                         console.error('Error fetching data:', data.error);
                         return;
                     }
 
-                    // Display vehicle markers
                     displayVehicleMarkers(data.vehicles);
+                    displayRequestMarkers(data.pending_requests, 'Pending', pendingRequestsLayer, true);
+                    displayRequestMarkers(data.processing_requests, 'Processing', processingRequestsLayer, false);
+                    displayOfferMarkers(data.pending_offers, 'Pending', pendingOffersLayer, true);
+                    displayOfferMarkers(data.processing_offers, 'Processing', processingOffersLayer, false);
 
-                    // Display request markers
-                    displayRequestMarkers(data.requests);
+                    displayTasks(data.connections);
+                    populateProcessingTasksTable(data.connections); // Populate processing tasks in the table
+                }
+            };
 
-                    // Display offer markers
-                    displayOfferMarkers(data.offers);
-                })
-                .catch(error => {
-                    console.error('Error fetching map data:', error);
-                });
+            xhr.onerror = function () {
+                console.error('Error fetching map data');
+            };
+
+            xhr.send();
         }
 
         function displayVehicleMarkers(vehicles) {
+            let vehicleLayerGroup = L.layerGroup();
+            vehicleLayerGroup.clearLayers();
+
             if (vehicles && Array.isArray(vehicles)) {
                 var vehicleIcon = L.icon({
                     iconUrl: '../pngs/vehicle.png',
@@ -145,17 +85,28 @@
 
                 vehicles.forEach(vehicle => {
                     if (vehicle.lat && vehicle.lng) {
-                        L.marker([parseFloat(vehicle.lat), parseFloat(vehicle.lng)], { icon: vehicleIcon })
-                            .addTo(map)
-                            .bindPopup(`<b>Vehicle:</b> ${vehicle.vehicle_name}<br>
+                        let marker = L.marker([parseFloat(vehicle.lat), parseFloat(vehicle.lng)], {
+                            icon: vehicleIcon,
+                            draggable: true
+                        })
+                            .bindPopup(`
+                                <b>Vehicle:</b> ${vehicle.vehicle_name}<br>
                                 <b>Load:</b> ${vehicle.current_load}<br>
-                                <b>Status:</b> ${vehicle.status}`);
+                                <b>Status:</b> ${vehicle.status}
+                            `)
+                            .addTo(map);
+
+                        marker.on('dragend', function (e) {
+                            var newLatLng = e.target.getLatLng();
+                            updateVehicleLocation(vehicle.vehicle_id, newLatLng.lat, newLatLng.lng);
+                        });
                     }
                 });
             }
         }
 
-        function displayRequestMarkers(requests) {
+        function displayRequestMarkers(requests, status, layerGroup, canServe) {
+            layerGroup.clearLayers();
             if (requests && Array.isArray(requests)) {
                 var requestIcon = L.icon({
                     iconUrl: '../pngs/request_icon.png',
@@ -167,21 +118,22 @@
                 requests.forEach(request => {
                     if (request.lat && request.lng) {
                         let marker = L.marker([parseFloat(request.lat), parseFloat(request.lng)], { icon: requestIcon })
-                            .addTo(map)
                             .bindPopup(`
                                 <b>Request by:</b> ${request.civilian_name}<br>
                                 <b>Item:</b> ${request.item_name}<br>
                                 <b>Quantity:</b> ${request.quantity_requested}<br>
-                                <div class="popup-buttons">
-                                    <button class="serve-button" onclick="serveRequest(${request.request_id}, ${request.lat}, ${request.lng})">Serve Request</button>
-                                </div>
+                                <b>Status:</b> ${status}<br>
+                                ${canServe ? `<button onclick="serveTask('request', ${request.request_id})">Serve</button>` : ''}
                             `);
+                        marker.addTo(layerGroup);
                     }
                 });
+                layerGroup.addTo(map);
             }
         }
 
-        function displayOfferMarkers(offers) {
+        function displayOfferMarkers(offers, status, layerGroup, canServe) {
+            layerGroup.clearLayers();
             if (offers && Array.isArray(offers)) {
                 var offerIcon = L.icon({
                     iconUrl: '../pngs/offer_icon.png',
@@ -193,53 +145,253 @@
                 offers.forEach(offer => {
                     if (offer.lat && offer.lng) {
                         let marker = L.marker([parseFloat(offer.lat), parseFloat(offer.lng)], { icon: offerIcon })
-                            .addTo(map)
                             .bindPopup(`
                                 <b>Offer by:</b> ${offer.civilian_name}<br>
                                 <b>Item:</b> ${offer.item_name}<br>
                                 <b>Quantity:</b> ${offer.quantity_offered}<br>
-                                <div class="popup-buttons">
-                                    <button class="serve-button" onclick="serveOffer(${offer.offer_id}, ${offer.lat}, ${offer.lng})">Serve Offer</button>
-                                </div>
+                                <b>Status:</b> ${status}<br>
+                                ${canServe ? `<button onclick="serveTask('offer', ${offer.offer_id})">Serve</button>` : ''}
                             `);
+                        marker.addTo(layerGroup);
                     }
                 });
+                layerGroup.addTo(map);
+            }
+        }
+
+        function displayTasks(tasks) {
+            connectionLines.forEach(line => map.removeLayer(line)); // Clear previous lines
+            connectionLines = [];
+
+            tasks.forEach(task => {
+                if (task.vehicle_lat && task.vehicle_lng && task.task_lat && task.task_lng) {
+                    let line = L.polyline([
+                        [parseFloat(task.vehicle_lat), parseFloat(task.vehicle_lng)], // Vehicle coordinates
+                        [parseFloat(task.task_lat), parseFloat(task.task_lng)]  // Task coordinates
+                    ], {
+                        color: 'blue',
+                        weight: 3
+                    }).addTo(map);
+                    connectionLines.push(line);
+                }
+            });
+        }
+
+        function populateProcessingTasksTable(processingTasks) {
+            const tableBody = document.querySelector('#processingTasksTable tbody');
+            tableBody.innerHTML = '';  // Clear existing rows
+
+            processingTasks.forEach(task => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+            <td>${task.task_type}</td>
+            <td>${task.item_name}</td>
+            <td>${task.status}</td>
+            <td>
+                <button onclick="completeTask(${task.task_id})">Complete</button>
+                <button onclick="cancelTask(${task.task_id})">Cancel</button>
+            </td>
+        `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function serveTask(type, taskId) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/serve_task.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        alert("Task assigned successfully!");
+                        fetchMapData();
+                    } else {
+                        alert("Error assigning task: " + response.error);
+                    }
+                }
+            };
+
+            var data = JSON.stringify({
+                task_type: type,
+                task_id: taskId
+            });
+
+            xhr.send(data);
+        }
+
+        function completeTask(taskId) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/complete_task.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        alert("Task completed successfully!");
+                        fetchMapData();  // Refresh map data
+                    } else {
+                        alert("Error completing task: " + response.error);
+                    }
+                }
+            };
+
+            var data = JSON.stringify({ task_id: taskId });
+            xhr.send(data);
+        }
+
+        function cancelTask(taskId) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/cancel_task.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        alert("Task cancelled successfully!");
+                        fetchMapData();  // Refresh map data
+                    } else {
+                        alert("Error cancelling task: " + response.error);
+                    }
+                }
+            };
+
+            var data = JSON.stringify({ task_id: taskId });
+            xhr.send(data);
+        }
+
+        function updateVehicleLocation(vehicleId, lat, lng) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "../php/update_vehicle_location.php", true);
+            xhr.setRequestHeader("Content-Type", "application/json");
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        alert("Vehicle location updated successfully!");
+                    } else {
+                        alert("Error updating vehicle location: " + response.error);
+                    }
+                }
+            };
+
+            xhr.onerror = function () {
+                console.error('Error updating vehicle location');
+            };
+
+            var data = JSON.stringify({
+                vehicle_id: vehicleId,
+                lat: lat,
+                lng: lng
+            });
+            xhr.send(data);
+        }
+
+        function toggleLayer(layer, checkbox) {
+            if (checkbox.checked) {
+                map.addLayer(layer);
+            } else {
+                map.removeLayer(layer);
             }
         }
 
         function logout() {
-            fetch('../php/logout.php', {
-                method: 'GET',
-                credentials: 'include'
-            }).then(response => {
-                if (response.ok) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/logout.php", true);
+            xhr.withCredentials = true;
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
                     sessionStorage.clear();
                     localStorage.clear();
                     window.location.href = 'login.html';
-                } else {
-                    console.error('Logout failed');
                 }
-            }).catch(error => {
-                console.error('Error during logout:', error);
-            });
+            };
+
+            xhr.onerror = function () {
+                console.error('Error during logout');
+            };
+
+            xhr.send();
+        }
+
+        function home() {
+            window.location.href = 'volunteer.html';
+        }
+
+        function checkLoginStatus() {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/check_login.php", true);
+            xhr.withCredentials = true;
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
+                    if (!data.loggedIn) {
+                        window.location.href = 'login.html';
+                    }
+                }
+            };
+
+            xhr.onerror = function () {
+                console.error('Error checking login status');
+                window.location.href = 'login.html';
+            };
+
+            xhr.send();
         }
     </script>
 </head>
 
 <body>
     <header>
-        <h1>Volunteer Dashboard</h1>
+        <h1>Volunteer Map</h1>
     </header>
     <nav>
         <a href="#" onclick="home()">Home</a>
-        <a href="#" onclick="showSection('requestSection')">Request an Item</a>
-        <a href="#" onclick="showSection('offerSection')">Offer an Item</a>
-        <a href="#" onclick="showSection('announcementsSection')">View Announcements</a>
         <a href="#" onclick="logout()">Logout</a>
     </nav>
 
     <div id="mapContainer">
         <div id="map"></div>
+    </div>
+
+    <div id="filterContainer">
+        <h3>Filter Markers:</h3>
+        <label>
+            <input type="checkbox" checked onchange="toggleLayer(pendingRequestsLayer, this)">
+            Show Pending Requests
+        </label><br>
+        <label>
+            <input type="checkbox" checked onchange="toggleLayer(processingRequestsLayer, this)">
+            Show Processing Requests
+        </label><br>
+        <label>
+            <input type="checkbox" checked onchange="toggleLayer(pendingOffersLayer, this)">
+            Show Pending Offers
+        </label><br>
+        <label>
+            <input type="checkbox" checked onchange="toggleLayer(processingOffersLayer, this)">
+            Show Processing Offers
+        </label>
+    </div>
+
+    <div id="task-table">
+        <table id="processingTasksTable">
+            <thead>
+                <tr>
+                    <th>Task Type</th>
+                    <th>Item</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
 
     <footer>

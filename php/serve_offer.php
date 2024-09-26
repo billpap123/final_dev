@@ -1,15 +1,11 @@
 <?php
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST");
-header("Access-Control-Allow-Headers: Content-Type");
-header('Content-Type: application/json');
-
+header("Content-Type: application/json");
 session_start();
 error_reporting(E_ALL);
-ini_set('display_errors', 0); // Disable displaying errors
+ini_set('display_errors', 1);
 ini_set('log_errors', 1);
-ini_set('error_log', '/path/to/your/error.log');  // Update with the path to your error log
 
+// Database connection
 $host = 'localhost';
 $db = 'finaldb';
 $user = 'root';
@@ -19,56 +15,30 @@ try {
     $conn = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    if (!isset($_SESSION['user_id'])) {
-        echo json_encode(['success' => false, 'error' => 'User not logged in']);
+    $data = json_decode(file_get_contents('php://input'), true);
+
+    if (!isset($data['vehicle_id'], $data['offer_id'])) {
+        echo json_encode(['success' => false, 'error' => 'Missing required data']);
         exit;
     }
 
-    $user_id = $_SESSION['user_id'];
+    $vehicle_id = $data['vehicle_id'];
+    $offer_id = $data['offer_id'];
 
-    // Fetch vehicle ID based on the logged-in user
-    $stmt = $conn->prepare("SELECT vehicle_id FROM vehicle WHERE volunteer_id = ?");
-    $stmt->bindParam(1, $user_id, PDO::PARAM_INT);
+    $stmt = $conn->prepare("
+        INSERT INTO tasks (type, vehicle_id, offer_id, status, assigned_date) 
+        VALUES ('Pickup', :vehicle_id, :offer_id, 'Processing', NOW())
+    ");
+    $stmt->bindParam(':vehicle_id', $vehicle_id, PDO::PARAM_INT);
+    $stmt->bindParam(':offer_id', $offer_id, PDO::PARAM_INT);
     $stmt->execute();
-    $vehicle = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$vehicle) {
-        echo json_encode(['success' => false, 'error' => 'Vehicle not found for the logged-in user']);
-        exit;
-    }
+    $stmt = $conn->prepare("UPDATE offers SET status = 'Processing' WHERE offer_id = :offer_id");
+    $stmt->bindParam(':offer_id', $offer_id, PDO::PARAM_INT);
+    $stmt->execute();
 
-    $vehicle_id = $vehicle['vehicle_id'];
-
-    $raw_data = file_get_contents("php://input");
-    $data = json_decode($raw_data, true);
-
-    if ($data === null) {
-        echo json_encode(["success" => false, "error" => "Failed to decode JSON"]);
-        exit;
-    }
-
-    $offer_id = $data['offer_id'] ?? null;
-
-    if ($offer_id) {
-        $stmt = $conn->prepare("UPDATE offers SET status = 'Processing' WHERE offer_id = ?");
-        $stmt->bindParam(1, $offer_id, PDO::PARAM_INT);
-        if ($stmt->execute()) {
-            $stmt = $conn->prepare("INSERT INTO tasks (type, vehicle_id, offer_id, status, assigned_date) VALUES ('Pickup', ?, ?, 'Processing', CURDATE())");
-            $stmt->bindParam(1, $vehicle_id, PDO::PARAM_INT);
-            $stmt->bindParam(2, $offer_id, PDO::PARAM_INT);
-            if ($stmt->execute()) {
-                echo json_encode(["success" => true]);
-            } else {
-                echo json_encode(["success" => false, "error" => "Failed to create task"]);
-            }
-        } else {
-            echo json_encode(["success" => false, "error" => "Failed to update offer status"]);
-        }
-    } else {
-        echo json_encode(["success" => false, "error" => "Offer ID not provided"]);
-    }
+    echo json_encode(['success' => true]);
 
 } catch (PDOException $e) {
-    echo json_encode(['success' => false, 'error' => 'Error: ' . $e->getMessage()]);
+    echo json_encode(['success' => false, 'error' => 'Error processing offer: ' . $e->getMessage()]);
 }
-?>

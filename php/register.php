@@ -1,63 +1,61 @@
 <?php
+session_start(); // Start session for managing logged-in user
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Database connection
-$con = mysqli_connect("localhost", "root", "", "finaldb");
+header("Content-Type: application/json");
 
-if (!$con) {
-    die(json_encode(["message" => "Connection failed: " . mysqli_connect_error()]));
-}
+$host = "localhost";
+$dbname = "finaldb";
+$username = "root";
+$password = "";
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $username = $_POST['username'];
-    $password = password_hash($_POST['password'], PASSWORD_BCRYPT);
-    $fullname = $_POST['fullname'];
-    $phone_number = $_POST['phone_number'];
-    $user_type = $_POST['user_type'];
-    $location = $_POST['location']; // e.g., "latitude, longitude"
+try {
+    $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Validate and split location into latitude and longitude
-    $location_parts = explode(', ', $location);
-    if (count($location_parts) == 2) {
-        $latitude = trim($location_parts[0]);
-        $longitude = trim($location_parts[1]);
-    } else {
-        die("Error: Location format is incorrect. Please use 'latitude, longitude'.");
-    }
+    if ($_SERVER["REQUEST_METHOD"] == "POST") {
+        $username = trim($_POST['username']);
+        $hashed_password = password_hash($_POST['password'], PASSWORD_BCRYPT);
+        $fullname = trim($_POST['fullname']);
+        $phone_number = trim($_POST['phone_number']);
+        $user_type = trim($_POST['user_type']);
+        $location = trim($_POST['location']); 
 
-    // Prepare the POINT value as a WKT string
-    $point = "POINT($latitude $longitude)";
-
-    // Prepare SQL statement
-    $sql = "INSERT INTO user (username, password, fullname, phone_number, user_type, location) 
-            VALUES (?, ?, ?, ?, ?, ST_GeomFromText(?))";
-    $stmt = $con->prepare($sql);
-
-    if (!$stmt) {
-        die("Error preparing the statement: " . $con->error);
-    }
-
-    // Bind parameters
-    $stmt->bind_param("ssssss", $username, $password, $fullname, $phone_number, $user_type, $point);
-
-    // Execute and check for errors
-    if ($stmt->execute()) {
-        echo "Registration successful!";
-        // Redirect based on user type
-        if ($user_type == 'Admin') {
-            header("Location: ../html/admin.html");
-        } elseif ($user_type == 'Volunteer') {
-            header("Location: ../html/volunteer.html");
+        $location_parts = explode(',', $location);
+        if (count($location_parts) == 2) {
+            $latitude = trim($location_parts[0]);
+            $longitude = trim($location_parts[1]);
         } else {
-            header("Location: ../html/civ.html");
+            echo json_encode(['error' => 'Location format is incorrect. Please use "latitude, longitude".']);
+            exit();
         }
-        exit();
-    } else {
-        echo "Error: " . $stmt->error;
-    }
 
-    $stmt->close();
-    $con->close();
+        $point = "POINT($latitude $longitude)";
+
+        $sql = "INSERT INTO user (username, password, fullname, phone_number, user_type, location) 
+                VALUES (:username, :password, :fullname, :phone_number, :user_type, ST_GeomFromText(:point))";
+        $stmt = $conn->prepare($sql);
+
+        $stmt->bindParam(':username', $username);
+        $stmt->bindParam(':password', $hashed_password);
+        $stmt->bindParam(':fullname', $fullname);
+        $stmt->bindParam(':phone_number', $phone_number);
+        $stmt->bindParam(':user_type', $user_type);
+        $stmt->bindParam(':point', $point);
+
+        if ($stmt->execute()) {
+            // After successful registration, set session variables to log in the user
+            $user_id = $conn->lastInsertId();
+            $_SESSION['user_id'] = $user_id;
+            $_SESSION['user_type'] = $user_type;
+
+            echo json_encode(['success' => true, 'user_type' => $user_type]);
+        } else {
+            echo json_encode(['error' => 'Failed to register user: ' . $stmt->errorInfo()[2]]);
+        }
+    }
+} catch (PDOException $e) {
+    echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
 }
 ?>

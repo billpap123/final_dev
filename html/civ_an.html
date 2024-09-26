@@ -18,7 +18,6 @@
         <div>
             <label for="announcementSelect">Select Announcement:</label>
             <select id="announcementSelect">
-                <!-- Announcements will be dynamically populated -->
             </select>
         </div>
         <div>
@@ -32,7 +31,6 @@
     <section id="announcementsSection" style="display: none;">
         <h2>Announcements</h2>
         <div id="announcementsList">
-            <!-- Announcements will be dynamically populated here -->
         </div>
     </section>
 
@@ -48,15 +46,28 @@
         }
 
         function loadAnnouncements() {
-            fetch('../php/get_announcements.php')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.announcements) {
-                        populateAnnouncementSelect(data.announcements);
-                        displayAnnouncements(data.announcements);
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/get_announcements.php", true);
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.announcements) {
+                            populateAnnouncementSelect(data.announcements);
+                            displayAnnouncements(data.announcements);
+                        }
+                    } catch (error) {
+                        console.error('Error parsing announcements:', error);
                     }
-                })
-                .catch(error => console.error('Error fetching announcements:', error));
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('Error fetching announcements');
+            };
+
+            xhr.send();
         }
 
         function populateAnnouncementSelect(announcements) {
@@ -85,41 +96,55 @@
             const offerQuantity = document.getElementById('offerQuantity').value;
 
             if (announcementId && offerQuantity > 0) {
-                fetch('../php/submit_offer.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ announcement_id: announcementId, quantity_offered: offerQuantity }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('offerMessage').textContent = 'Offer submitted successfully!';
-                    } else {
-                        document.getElementById('offerMessage').textContent = 'Error submitting offer.';
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "../php/submit_offer.php", true);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            if (data.success) {
+                                document.getElementById('offerMessage').textContent = 'Offer submitted successfully!';
+                            } else {
+                                document.getElementById('offerMessage').textContent = 'Error submitting offer.';
+                            }
+                        } catch (error) {
+                            console.error('Error parsing offer response:', error);
+                        }
                     }
-                });
+                };
+
+                xhr.onerror = function() {
+                    console.error('Error submitting offer');
+                };
+
+                xhr.send(JSON.stringify({ announcement_id: announcementId, quantity_offered: offerQuantity }));
             } else {
                 document.getElementById('offerMessage').textContent = 'Please select an announcement and specify the quantity offered.';
             }
         }
 
         function logout() {
-            fetch('../php/logout.php', {
-                method: 'GET',
-                credentials: 'include'
-            }).then(response => {
-                if (response.ok) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/logout.php", true);
+            xhr.withCredentials = true;
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
                     sessionStorage.clear();
                     localStorage.clear();
                     window.location.href = 'login.html';
                 } else {
                     console.error('Logout failed');
                 }
-            }).catch(error => {
-                console.error('Error during logout:', error);
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error during logout');
+            };
+
+            xhr.send();
         }
     </script>
 </body>

@@ -4,51 +4,53 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Allow-Headers: Content-Type");
 
-$con = mysqli_connect("localhost", "root", "", "finaldb");
+// Database connection
+$host = 'localhost';
+$dbname = 'finaldb';
+$username = 'root';
+$password = '';
 
-if (!$con) {
-    echo json_encode(["error" => "Database connection failed: " . mysqli_connect_error()]);
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    echo json_encode(["error" => "Database connection failed: " . $e->getMessage()]);
     exit();
 }
 
+// Handle POST request
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['category']) && isset($_POST['quantity']) && isset($_POST['item_id'])) {
-        $categories = $_POST['category'];
-        $quantities = $_POST['quantity'];
-        $item_ids = $_POST['item_id'];
+    $data = json_decode(file_get_contents('php://input'), true);
 
-        // Validate input arrays
-        if (!is_array($categories) || !is_array($quantities) || !is_array($item_ids) ||
-            count($categories) !== count($quantities) || count($categories) !== count($item_ids)) {
-            echo json_encode(["error" => "Invalid input data"]);
+    if (isset($data['item_id']) && isset($data['quantity'])) {
+        $item_ids = $data['item_id'];
+        $quantities = $data['quantity'];
+
+        // Ensure arrays are of the same length
+        if (count($item_ids) !== count($quantities)) {
+            echo json_encode(["error" => "Mismatch between item IDs and quantities"]);
             exit();
         }
 
-        $stmt = $con->prepare("UPDATE items SET category_id = ?, quantity = ? WHERE item_id = ?");
-        if (!$stmt) {
-            echo json_encode(["error" => "Prepare statement error: " . $con->error]);
-            exit();
-        }
+        // Prepare SQL statement for updating quantities
+        $query = "UPDATE items SET quantity = ? WHERE item_id = ?";
+        $stmt = $pdo->prepare($query);
 
-        foreach ($categories as $index => $category) {
+        foreach ($item_ids as $index => $item_id) {
             $quantity = $quantities[$index];
-            $item_id = $item_ids[$index];
 
             // Check for valid data
-            if (!is_numeric($quantity) || !is_numeric($item_id) || !is_numeric($category)) {
-                echo json_encode(["error" => "Invalid data type for quantity, category, or item ID"]);
+            if (!is_numeric($quantity) || !is_numeric($item_id)) {
+                echo json_encode(["error" => "Invalid data type for quantity or item ID"]);
                 exit();
             }
 
-            $stmt->bind_param("iii", $category, $quantity, $item_id);
-            if (!$stmt->execute()) {
-                echo json_encode(["error" => "Query failed: " . $stmt->error]);
+            // Execute the update statement
+            if (!$stmt->execute([$quantity, $item_id])) {
+                echo json_encode(["error" => "Query failed: " . implode(", ", $stmt->errorInfo())]);
                 exit();
             }
         }
-
-        $stmt->close();
-        $con->close();
 
         echo json_encode(["success" => true]);
     } else {

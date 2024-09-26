@@ -8,43 +8,55 @@
     
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Check if the user is logged in when the page loads
             checkLoginStatus();
         });
 
         function checkLoginStatus() {
-            fetch('../php/check_login.php', {
-                method: 'GET',
-                credentials: 'include' // Ensures session cookies are sent
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.loggedIn) {
-                    // Redirect to the login page if not logged in
-                    window.location.href = 'login.html';
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/check_login.php", true);
+            xhr.withCredentials = true;  
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (!data.loggedIn) {
+                            window.location.href = 'login.html';
+                        }
+                    } catch (error) {
+                        console.error('Error parsing login response:', error);
+                        window.location.href = 'login.html'; 
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error checking login status:', error);
-                window.location.href = 'login.html'; // Redirect if there's an error
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error checking login status');
+                window.location.href = 'login.html';  
+            };
+
+            xhr.send();
         }
 
         function logout() {
-            fetch('../php/logout.php', {
-                method: 'GET',
-                credentials: 'include' // Include session cookies
-            }).then(response => {
-                if (response.ok) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/logout.php", true);
+            xhr.withCredentials = true;  
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
                     sessionStorage.clear();
                     localStorage.clear();
                     window.location.href = 'login.html';
                 } else {
                     console.error('Logout failed');
                 }
-            }).catch(error => {
-                console.error('Error during logout:', error);
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error during logout');
+            };
+
+            xhr.send();
         }
 
         function home() {

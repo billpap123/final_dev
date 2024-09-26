@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,45 +10,25 @@
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-   
-   <script>
-    function home() {
-            window.location.href = 'admin.html';
-        }
 
-        function maap() {
-            window.location.href = 'map.html';
-        }
-
-        function products() {
-            window.location.href = 'products.html';
-        }
-
-        function announcement() {
-            window.location.href = 'admin_announcement.html';
-        }
-
-        function users() {
-            window.location.href = 'users.html';
-        }
-        
-        function chart() {
-            window.location.href = 'chart.html';
-        }
+    <script>
         let map;
-        let requestMarkers = [];
-        let offerMarkers = [];
-        let vehicleMarkers = [];
+        let pendingRequestMarkers = [];
+        let processingRequestMarkers = [];
+        let pendingOfferMarkers = [];
+        let processingOfferMarkers = [];
+        let vehicleMarkersWithTasks = [];
+        let vehicleMarkersWithoutTasks = [];
         let connectionLines = [];
 
         document.addEventListener("DOMContentLoaded", function () {
             checkLoginStatus();
             mapStart();
 
-            // Add filter change listeners
             document.getElementById('showPendingRequests').addEventListener('change', toggleRequestMarkers);
-            document.getElementById('showAssignedRequests').addEventListener('change', toggleRequestMarkers);
-            document.getElementById('showOffers').addEventListener('change', toggleOfferMarkers);
+            document.getElementById('showProcessingRequests').addEventListener('change', toggleRequestMarkers);
+            document.getElementById('showPendingOffers').addEventListener('change', toggleOfferMarkers);
+            document.getElementById('showProcessingOffers').addEventListener('change', toggleOfferMarkers);
             document.getElementById('showVehiclesWithTasks').addEventListener('change', toggleVehicleMarkers);
             document.getElementById('showVehiclesWithoutTasks').addEventListener('change', toggleVehicleMarkers);
             document.getElementById('showConnectionLines').addEventListener('change', toggleConnectionLines);
@@ -88,6 +69,8 @@
         }
 
         function mapStart() {
+            if (map) return;
+
             const initialCoordinates = [38.250271, 21.738752];
             const initialZoomLevel = 13;
 
@@ -97,7 +80,11 @@
                 attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             }).addTo(map);
 
-            fetch('../php/get_map_data.php')
+            fetchMapData();
+        }
+
+        function fetchMapData() {
+            fetch("../php/get_map_data.php")
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
@@ -105,185 +92,196 @@
                         return;
                     }
 
-                    // Add storage marker if available
-                    if (data.storage) {
-                        const storageLocation = data.storage;
-                        if (storageLocation) {
-                            const [lat, lng] = [storageLocation.lat, storageLocation.lng];
-                            var storageMarker = L.marker([parseFloat(lat), parseFloat(lng)], { draggable: true })
-                                .addTo(map)
-                                .bindPopup("<b>Storage</b><br>This is the storage location.");
-                            storageMarker.on('dragend', function (event) {
-                                var newPosition = event.target.getLatLng();
-                                updateStorageLocation(newPosition.lat, newPosition.lng);
-                            });
-                        }
-                    }
-
-                    var vehicleIcon = L.icon({
-                        iconUrl: '../pngs/vehicle.png',
-                        iconSize: [32, 32],
-                        iconAnchor: [16, 32],
-                        popupAnchor: [0, -32]
-                    });
-
-                    if (data.vehicles && Array.isArray(data.vehicles)) {
-                        vehicleMarkers = data.vehicles.map(vehicle => {
-                            if (vehicle.lat && vehicle.lng) {
-                                return L.marker([parseFloat(vehicle.lat), parseFloat(vehicle.lng)], { icon: vehicleIcon })
-                                    .bindPopup(`<b>Vehicle:</b> ${vehicle.vehicle_name}<br>
-                                        <b>Load:</b> ${vehicle.current_load}<br>
-                                        <b>Status:</b> ${vehicle.status}`);
-                            }
-                        });
-                    }
-
-                    var requestIcon = L.icon({
-                        iconUrl: '../pngs/request_icon.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34]
-                    });
-
-                    if (data.requests && Array.isArray(data.requests)) {
-                        requestMarkers = data.requests.map(request => {
-                            if (request.lat && request.lng) {
-                                return L.marker([parseFloat(request.lat), parseFloat(request.lng)], { icon: requestIcon })
-                                    .bindPopup(`<b>Request by:</b> ${request.civilian_name}<br>
-                                        <b>Phone:</b> ${request.phone_number}<br>
-                                        <b>Item:</b> ${request.item_name}<br>
-                                        <b>Quantity:</b> ${request.quantity_requested}<br>
-                                        <b>Date Created:</b> ${request.date_created}`);
-                            }
-                        });
-                    }
-
-                    var offerIcon = L.icon({
-                        iconUrl: '../pngs/offer_icon.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34]
-                    });
-
-                    if (data.offers && Array.isArray(data.offers)) {
-                        offerMarkers = data.offers.map(offer => {
-                            if (offer.lat && offer.lng) {
-                                return L.marker([parseFloat(offer.lat), parseFloat(offer.lng)], { icon: offerIcon })
-                                    .bindPopup(`<b>Offer by:</b> ${offer.civilian_name}<br>
-                                        <b>Phone:</b> ${offer.phone_number}<br>
-                                        <b>Item:</b> ${offer.item_name}<br>
-                                        <b>Quantity:</b> ${offer.quantity_offered}<br>
-                                        <b>Date Created:</b> ${offer.date_created}`);
-                            }
-                        });
-                    }
-
-                    if (data.connections && Array.isArray(data.connections)) {
-                        connectionLines = data.connections.map(connection => {
-                            return L.polyline([[parseFloat(connection.vehicle_lat), parseFloat(connection.vehicle_lng)], [parseFloat(connection.task_lat), parseFloat(connection.task_lng)]], {
-                                color: 'blue'
-                            });
-                        });
-                    }
+                    displayStorage(data.storage);
+                    displayVehicles(data.vehicles);
+                    displayRequests(data.requests);
+                    displayOffers(data.offers);
+                    displayConnections(data.connections);
                 })
                 .catch(error => {
                     console.error('Error fetching map data:', error);
                 });
         }
 
-        function updateStorageLocation(lat, lng) {
-            fetch('../php/update_storage_location.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ lat: lat, lng: lng }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log('Storage location updated:', data);
-                } else {
-                    console.error('Error updating storage location:', data.error);
+        function displayStorage(storage) {
+            if (storage) {
+                const { lat, lng } = storage;
+                L.marker([lat, lng], { draggable: true })
+                    .addTo(map)
+                    .bindPopup("<b>Storage</b><br>This is the storage location.");
+            }
+        }
+
+        function displayVehicles(vehicles) {
+            const vehicleIcon = L.icon({
+                iconUrl: '../pngs/vehicle.png',
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+                popupAnchor: [0, -32]
+            });
+
+            vehicles.forEach(vehicle => {
+                if (vehicle.lat !== null && vehicle.lng !== null) {
+                    const marker = L.marker([vehicle.lat, vehicle.lng], { icon: vehicleIcon })
+                        .bindPopup(`<b>Vehicle:</b> ${vehicle.vehicle_name}<br><b>Status:</b> ${vehicle.current_task ? 'Busy' : 'Available'}`);
+                    
+                    if (vehicle.current_task) {
+                        console.log(`Vehicle ${vehicle.vehicle_name} is busy`);
+                        vehicleMarkersWithTasks.push(marker);
+                    } else {
+                        console.log(`Vehicle ${vehicle.vehicle_name} is available`);
+                        vehicleMarkersWithoutTasks.push(marker);
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error updating storage location:', error);
+            });
+
+            // By default, show both vehicle types on the map
+            vehicleMarkersWithTasks.forEach(marker => marker.addTo(map));
+            vehicleMarkersWithoutTasks.forEach(marker => marker.addTo(map));
+        }
+
+        function displayRequests(requests) {
+            const requestIcon = L.icon({
+                iconUrl: '../pngs/request_icon.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34]
+            });
+
+            requests.forEach(request => {
+                if (request.lat !== null && request.lng !== null) {
+                    const marker = L.marker([request.lat, request.lng], { icon: requestIcon })
+                        .bindPopup(`<b>Request by:</b> ${request.civilian_name}<br><b>Item:</b> ${request.item_name}<br><b>Status:</b> ${request.status}`);
+
+                    if (request.status === 'Processing') {
+                        processingRequestMarkers.push(marker);
+                    } else {
+                        pendingRequestMarkers.push(marker);
+                    }
+                }
+            });
+
+            pendingRequestMarkers.forEach(marker => marker.addTo(map));
+            processingRequestMarkers.forEach(marker => marker.addTo(map));
+        }
+
+        function displayOffers(offers) {
+            const offerIcon = L.icon({
+                iconUrl: '../pngs/offer_icon.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34]
+            });
+
+            offers.forEach(offer => {
+                if (offer.lat !== null && offer.lng !== null) {
+                    const marker = L.marker([offer.lat, offer.lng], { icon: offerIcon })
+                        .bindPopup(`<b>Offer by:</b> ${offer.civilian_name}<br><b>Item:</b> ${offer.item_name}<br><b>Status:</b> ${offer.status}`);
+
+                    if (offer.status === 'Processing') {
+                        processingOfferMarkers.push(marker);
+                    } else {
+                        pendingOfferMarkers.push(marker);
+                    }
+                }
+            });
+
+            pendingOfferMarkers.forEach(marker => marker.addTo(map));
+            processingOfferMarkers.forEach(marker => marker.addTo(map));
+        }
+
+        function displayConnections(connections) {
+            connections.forEach(connection => {
+                const line = L.polyline([
+                    [connection.vehicle_lat, connection.vehicle_lng],
+                    [connection.task_lat, connection.task_lng]
+                ], {
+                    color: 'blue',
+                    weight: 3
+                }).addTo(map);
+
+                connectionLines.push(line);
             });
         }
 
-        // Toggle filter functions
         function toggleRequestMarkers() {
             const showPending = document.getElementById('showPendingRequests').checked;
-            const showAssigned = document.getElementById('showAssignedRequests').checked;
+            const showProcessing = document.getElementById('showProcessingRequests').checked;
 
-            requestMarkers.forEach(marker => {
-                if (marker && map.hasLayer(marker)) map.removeLayer(marker);
-                if (showPending || showAssigned) marker.addTo(map);
-            });
+            pendingRequestMarkers.forEach(marker => map.removeLayer(marker));
+            processingRequestMarkers.forEach(marker => map.removeLayer(marker));
+
+            if (showPending) pendingRequestMarkers.forEach(marker => marker.addTo(map));
+            if (showProcessing) processingRequestMarkers.forEach(marker => marker.addTo(map));
         }
 
         function toggleOfferMarkers() {
-            const showOffers = document.getElementById('showOffers').checked;
-            offerMarkers.forEach(marker => {
-                if (marker && map.hasLayer(marker)) map.removeLayer(marker);
-                if (showOffers) marker.addTo(map);
-            });
+            const showPending = document.getElementById('showPendingOffers').checked;
+            const showProcessing = document.getElementById('showProcessingOffers').checked;
+
+            pendingOfferMarkers.forEach(marker => map.removeLayer(marker));
+            processingOfferMarkers.forEach(marker => map.removeLayer(marker));
+
+            if (showPending) pendingOfferMarkers.forEach(marker => marker.addTo(map));
+            if (showProcessing) processingOfferMarkers.forEach(marker => marker.addTo(map));
         }
 
         function toggleVehicleMarkers() {
             const showWithTasks = document.getElementById('showVehiclesWithTasks').checked;
             const showWithoutTasks = document.getElementById('showVehiclesWithoutTasks').checked;
 
-            vehicleMarkers.forEach(marker => {
-                if (marker && map.hasLayer(marker)) map.removeLayer(marker);
-                if (showWithTasks || showWithoutTasks) marker.addTo(map);
-            });
+            vehicleMarkersWithTasks.forEach(marker => map.removeLayer(marker));
+            vehicleMarkersWithoutTasks.forEach(marker => map.removeLayer(marker));
+
+            if (showWithTasks) vehicleMarkersWithTasks.forEach(marker => marker.addTo(map));
+            if (showWithoutTasks) vehicleMarkersWithoutTasks.forEach(marker => marker.addTo(map));
         }
 
         function toggleConnectionLines() {
             const showLines = document.getElementById('showConnectionLines').checked;
-            connectionLines.forEach(line => {
-                if (line && map.hasLayer(line)) map.removeLayer(line);
-                if (showLines) line.addTo(map);
-            });
+
+            connectionLines.forEach(line => map.removeLayer(line));
+            if (showLines) connectionLines.forEach(line => line.addTo(map));
         }
 
     </script>
 </head>
+
 <body>
-<header>
-    <h1>Admin Dashboard</h1>
-</header>
+    <header>
+        <h1>Admin Dashboard</h1>
+    </header>
 
-<nav>
-    <a href="#" onclick="home()">Home</a>
-    <a href="#" onclick="users()">Users</a>
-    <a href="#" onclick="products()">Products</a>
-    <a href="#" onclick="announcement()">Announcements</a>
-    <a href="#" onclick="maap()">Map</a>
-    <a href="#" onclick="chart()">Chart</a>
-    
-</nav>
+    <nav>
+        <a href="#" onclick="home()">Home</a>
+        <a href="#" onclick="users()">Users</a>
+        <a href="#" onclick="products()">Products</a>
+        <a href="#" onclick="announcement()">Announcements</a>
+        <a href="#" onclick="maap()">Map</a>
+        <a href="#" onclick="chart()">Chart</a>
+    </nav>
 
-<section>
-    <h2>Map Filters</h2>
-    <label><input type="checkbox" id="showPendingRequests" checked> Show Pending Requests</label><br>
-    <label><input type="checkbox" id="showAssignedRequests" checked> Show Assigned Requests</label><br>
-    <label><input type="checkbox" id="showOffers" checked> Show Offers</label><br>
-    <label><input type="checkbox" id="showVehiclesWithTasks" checked> Show Vehicles with Tasks</label><br>
-    <label><input type="checkbox" id="showVehiclesWithoutTasks" checked> Show Vehicles without Tasks</label><br>
-    <label><input type="checkbox" id="showConnectionLines" checked> Show Connection Lines</label><br>
-</section>
+    <section>
+        <h2>Map Filters</h2>
+        <label><input type="checkbox" id="showPendingRequests" checked> Show Pending Requests</label><br>
+        <label><input type="checkbox" id="showProcessingRequests" checked> Show Processing Requests</label><br>
+        <label><input type="checkbox" id="showPendingOffers" checked> Show Pending Offers</label><br>
+        <label><input type="checkbox" id="showProcessingOffers" checked> Show Processing Offers</label><br>
+        <label><input type="checkbox" id="showVehiclesWithTasks" checked> Show Vehicles with Tasks</label><br>
+        <label><input type="checkbox" id="showVehiclesWithoutTasks" checked> Show Vehicles without Tasks</label><br>
+        <label><input type="checkbox" id="showConnectionLines" checked> Show Connection Lines</label><br>
+    </section>
 
-<div id="mapContainer">
-    <div id="map"></div>
-</div>
+    <div id="mapContainer">
+        <div id="map"></div>
+    </div>
 
-<footer>
-    &copy; 2024 Admin Dashboard <br><br><br>
-    <button onclick="logout()">Log Out</button>
-</footer>
+    <footer>
+        &copy; 2024 Admin Dashboard
+        <br><br><br>
+        <button onclick="logout()">Log Out</button>
+    </footer>
 
 </body>
+
 </html>

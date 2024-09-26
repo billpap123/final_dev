@@ -14,7 +14,6 @@ try {
 
     $volunteer_id = $_SESSION['user_id'];
 
-    // Delete the vehicle
     $stmt = $conn->prepare("DELETE FROM vehicle WHERE volunteer_id = :volunteer_id");
     $stmt->execute(['volunteer_id' => $volunteer_id]);
 

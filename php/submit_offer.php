@@ -1,6 +1,5 @@
 <?php
 
-// Enable error reporting for debugging
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -10,7 +9,6 @@ header("Content-Type: application/json");
 
 session_start();
 
-// Check if the user is logged in
 if (!isset($_SESSION['user_id'])) {
     echo json_encode(['error' => 'User not logged in']);
     exit;
@@ -18,14 +16,11 @@ if (!isset($_SESSION['user_id'])) {
 
 $userId = $_SESSION['user_id'];
 
-// Read and decode the input JSON
 $rawData = file_get_contents("php://input");
 $data = json_decode($rawData, true);
 
-// Log the received data for debugging
 error_log("Received data: " . $rawData);
 
-// Validate the input
 if (!isset($data['announcement_id']) || !isset($data['quantity_offered'])) {
     echo json_encode(['error' => 'Invalid input']);
     exit;
@@ -42,7 +37,6 @@ if ($con->connect_error) {
     exit;
 }
 
-// Fetch the item_id based on the announcement_id
 $itemQuery = $con->prepare("SELECT item_id FROM announcement WHERE announcement_id = ?");
 if (!$itemQuery) {
     error_log("Prepare failed (fetching item_id): (" . $con->errno . ") " . $con->error);
@@ -64,7 +58,6 @@ if (!$itemQuery->fetch()) {
 }
 $itemQuery->close();
 
-// Prepare the SQL statement with item_id included
 $stmt = $con->prepare("INSERT INTO offers (civilian_id, item_id, quantity_offered, date_created, `status`) VALUES (?, ?, ?, ?, ?)");
 if (!$stmt) {
     error_log("Prepare failed: (" . $con->errno . ") " . $con->error);
@@ -74,14 +67,12 @@ if (!$stmt) {
 
 $status = 'Pending';
 
-// Bind parameters
 if (!$stmt->bind_param("iiiss", $userId, $itemId, $quantityOffered, $dateCreated, $status)) {
     error_log("Binding parameters failed: (" . $stmt->errno . ") " . $stmt->error);
     echo json_encode(['error' => 'Database error during bind_param: ' . $stmt->error]);
     exit;
 }
 
-// Execute the query
 if (!$stmt->execute()) {
     error_log("Execute failed: (" . $stmt->errno . ") " . $stmt->error);
     echo json_encode(['error' => 'Error during execute: ' . $stmt->error]);

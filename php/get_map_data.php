@@ -1,5 +1,4 @@
 <?php
-// Allow from any origin
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -9,49 +8,46 @@ session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Database connection
 $host = 'localhost';
 $db = 'finaldb';
 $user = 'root';
 $pass = '';
 
 try {
-    // Create a new PDO connection
+    // Create the database connection
     $conn = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Fetch storage data
+    // Fetch storage location
     $storageQuery = $conn->query("SELECT ST_X(storage_location) AS lat, ST_Y(storage_location) AS lng FROM storage LIMIT 1");
     $storage = $storageQuery->fetch(PDO::FETCH_ASSOC);
 
-    // Fetch vehicle data
-    $vehicleQuery = $conn->query("SELECT v.vehicle_id, v.vehicle_name, ST_X(v.current_location) AS lat, ST_Y(v.current_location) AS lng, v.current_load, v.status
+    // Fetch all vehicles, including current_task
+    $vehicleQuery = $conn->query("SELECT v.vehicle_id, v.vehicle_name, ST_X(v.current_location) AS lat, ST_Y(v.current_location) AS lng, v.current_load, v.current_task, v.status
         FROM vehicle v");
     $vehicles = $vehicleQuery->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch requests (including phone number, date created, and assigned vehicle info if applicable)
-    $requestQuery = $conn->query("SELECT r.request_id, u.fullname AS civilian_name, u.phone_number, i.item_name, r.quantity_requested, r.date_created, ST_X(u.location) AS lat, ST_Y(u.location) AS lng,
-        v.vehicle_name AS assigned_vehicle_name, t.assigned_date AS date_served
+    // Fetch pending and processing requests
+    $requestQuery = $conn->query("
+        SELECT r.request_id, u.fullname AS civilian_name, u.phone_number, i.item_name, r.quantity_requested, r.date_created, ST_X(u.location) AS lat, ST_Y(u.location) AS lng,
+        r.status
         FROM requests r
         JOIN user u ON r.civilian_id = u.user_id
         JOIN items i ON r.item_id = i.item_id
-        LEFT JOIN tasks t ON r.request_id = t.request_id
-        LEFT JOIN vehicle v ON t.vehicle_id = v.vehicle_id
-        WHERE r.status = 'pending'");
+        WHERE r.status IN ('Pending', 'Processing')");
     $requests = $requestQuery->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch offers (including phone number, date created, and assigned vehicle info if applicable)
-    $offerQuery = $conn->query("SELECT o.offer_id, u.fullname AS civilian_name, u.phone_number, i.item_name, o.quantity_offered, o.date_created, ST_X(u.location) AS lat, ST_Y(u.location) AS lng,
-        v.vehicle_name AS assigned_vehicle_name, t.assigned_date AS date_served
+    // Fetch pending and processing offers
+    $offerQuery = $conn->query("
+        SELECT o.offer_id, u.fullname AS civilian_name, u.phone_number, i.item_name, o.quantity_offered, o.date_created, ST_X(u.location) AS lat, ST_Y(u.location) AS lng,
+        o.status
         FROM offers o
         JOIN user u ON o.civilian_id = u.user_id
         JOIN items i ON o.item_id = i.item_id
-        LEFT JOIN tasks t ON o.offer_id = t.offer_id
-        LEFT JOIN vehicle v ON t.vehicle_id = v.vehicle_id
-        WHERE o.status = 'pending'");
+        WHERE o.status IN ('Pending', 'Processing')");
     $offers = $offerQuery->fetchAll(PDO::FETCH_ASSOC);
 
-    // Fetch active tasks and their connections to vehicles (requests or offers)
+    // Fetch tasks and their connections
     $connectionQuery = $conn->query("
         SELECT v.vehicle_id, ST_X(v.current_location) AS vehicle_lat, ST_Y(v.current_location) AS vehicle_lng,
                CASE 
@@ -72,16 +68,16 @@ try {
     ");
     $connections = $connectionQuery->fetchAll(PDO::FETCH_ASSOC);
 
-    // Prepare the response
+    // Prepare the final response
     $response = [
         'storage' => $storage,
         'vehicles' => $vehicles,
         'requests' => $requests,
         'offers' => $offers,
-        'connections' => $connections // Add connections between vehicles and tasks
+        'connections' => $connections
     ];
 
-    // Send response as JSON
+    // Return the response as JSON
     echo json_encode($response);
 
 } catch (PDOException $e) {

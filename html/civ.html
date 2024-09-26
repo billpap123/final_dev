@@ -13,41 +13,54 @@
             loadAnnouncements();
             checkLoginStatus();
         });
+
         function checkLoginStatus() {
-            fetch('../php/check_login.php', {
-                method: 'GET',
-                credentials: 'include' // Ensures session cookies are sent
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.loggedIn) {
-                    // Redirect to the login page if not logged in
-                    window.location.href = 'login.html';
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/check_login.php", true);
+            xhr.withCredentials = true;
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        if (!data.loggedIn) {
+                            window.location.href = 'login.html';
+                        }
+                    } catch (error) {
+                        console.error('Error parsing login response:', error);
+                        window.location.href = 'login.html';  
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error checking login status:', error);
-                window.location.href = 'login.html'; // Redirect if there's an error
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error checking login status');
+                window.location.href = 'login.html';  
+            };
+
+            xhr.send();
         }
 
-
-
         function logout() {
-            fetch('../php/logout.php', {
-                method: 'GET',
-                credentials: 'include' // Include session cookies
-            }).then(response => {
-                if (response.ok) {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/logout.php", true);
+            xhr.withCredentials = true;
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
                     sessionStorage.clear();
                     localStorage.clear();
                     window.location.href = 'login.html';
                 } else {
                     console.error('Logout failed');
                 }
-            }).catch(error => {
-                console.error('Error during logout:', error);
-            });
+            };
+
+            xhr.onerror = function() {
+                console.error('Error during logout');
+            };
+
+            xhr.send();
         }
 
         function showSection(sectionId) {
@@ -58,16 +71,23 @@
         }
 
         function fetchCategories() {
-            fetch('../php/get_categories.php')
-                .then(response => response.json())
-                .then(data => {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/get_categories.php", true);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
                     if (data.categories) {
                         populateCategorySelect(data.categories);
                     }
-                })
-                .catch(error => {
-                    console.error('Error fetching categories:', error);
-                });
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('Error fetching categories');
+            };
+
+            xhr.send();
         }
 
         function populateCategorySelect(categories) {
@@ -83,32 +103,52 @@
         function autocompleteItems() {
             const searchTerm = document.getElementById('itemSearch').value;
             if (searchTerm.length > 2) {
-                fetch(`../php/search_items.php?query=${searchTerm}`)
-                    .then(response => response.json())
-                    .then(data => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", `../php/search_items.php?query=${searchTerm}`, true);
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var data = JSON.parse(xhr.responseText);
                         if (data.items) {
                             populateItemSelect(data.items);
                         }
-                    });
+                    }
+                };
+
+                xhr.onerror = function() {
+                    console.error('Error fetching items for autocomplete');
+                };
+
+                xhr.send();
             }
         }
 
         function loadItemsByCategory() {
             const categoryId = document.getElementById('categorySelect').value;
             if (categoryId) {
-                fetch(`../php/get_items_by_category.php?category_id=${categoryId}`)
-                    .then(response => response.json())
-                    .then(data => {
+                var xhr = new XMLHttpRequest();
+                xhr.open("GET", `../php/get_items_by_category.php?category_id=${categoryId}`, true);
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var data = JSON.parse(xhr.responseText);
                         if (data.items) {
                             populateItemSelect(data.items);
                         }
-                    });
+                    }
+                };
+
+                xhr.onerror = function() {
+                    console.error('Error fetching items by category');
+                };
+
+                xhr.send();
             }
         }
 
         function populateItemSelect(items) {
             const itemSelect = document.getElementById('itemSelect');
-            itemSelect.innerHTML = ''; // Clear previous items
+            itemSelect.innerHTML = '';  
             items.forEach(item => {
                 const option = document.createElement('option');
                 option.value = item.item_id;
@@ -122,50 +162,61 @@
             const peopleCount = document.getElementById('peopleCount').value;
 
             if (itemId && peopleCount > 0) {
-                fetch('../php/submit_request.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ item_id: itemId, people_count: peopleCount }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('requestMessage').textContent = 'Request submitted successfully!';
-                        loadCurrentRequests();
-                    } else {
-                        document.getElementById('requestMessage').textContent = 'Error submitting request.';
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "../php/submit_request.php", true);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            document.getElementById('requestMessage').textContent = 'Request submitted successfully!';
+                            loadCurrentRequests();
+                        } else {
+                            document.getElementById('requestMessage').textContent = 'Error submitting request.';
+                        }
                     }
-                });
+                };
+
+                xhr.onerror = function() {
+                    console.error('Error submitting request');
+                };
+
+                xhr.send(JSON.stringify({ item_id: itemId, people_count: peopleCount }));
             } else {
                 document.getElementById('requestMessage').textContent = 'Please select an item and specify the number of people.';
             }
         }
 
         function loadCurrentRequests() {
-            fetch('../php/get_current_requests.php')
-                .then(response => response.json())
-                .then(data => {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/get_current_requests.php", true);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
                     if (data.requests) {
                         displayRequests(data.requests, 'currentRequests');
                     } else {
                         document.getElementById('currentRequests').textContent = 'No current requests found.';
                     }
-                })
-                .catch(error => {
-                    console.error('Error loading current requests:', error);
-                });
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('Error loading current requests');
+            };
+
+            xhr.send();
         }
 
         function displayRequests(requests, containerId) {
             const container = document.getElementById(containerId);
-            container.innerHTML = ''; // Clear previous requests
+            container.innerHTML = '';  
 
             if (requests && requests.length > 0) {
                 requests.forEach(request => {
                     const requestDiv = document.createElement('div');
-                    // Use item_name instead of item_id
                     requestDiv.textContent = `Item Name: ${request.item_name}, People: ${request.people_count}, Status: ${request.status}, Date Created: ${request.date_created}`;
                     container.appendChild(requestDiv);
                 });
@@ -175,30 +226,46 @@
         }
 
         function loadPastRequests() {
-            fetch('../php/get_past_requests.php')
-                .then(response => response.json())
-                .then(data => {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/get_past_requests.php", true);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
                     if (data.requests) {
                         displayRequests(data.requests, 'pastRequests');
                     } else {
                         document.getElementById('pastRequests').textContent = 'No past requests found.';
                     }
-                })
-                .catch(error => {
-                    console.error('Error loading past requests:', error);
-                });
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('Error loading past requests');
+            };
+
+            xhr.send();
         }
 
         function loadAnnouncements() {
-            fetch('../php/get_announcements.php')
-                .then(response => response.json())
-                .then(data => {
+            var xhr = new XMLHttpRequest();
+            xhr.open("GET", "../php/get_announcements.php", true);
+
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    var data = JSON.parse(xhr.responseText);
                     if (data.announcements) {
                         populateAnnouncementSelect(data.announcements);
                         displayAnnouncements(data.announcements);
                     }
-                })
-                .catch(error => console.error('Error fetching announcements:', error));
+                }
+            };
+
+            xhr.onerror = function() {
+                console.error('Error fetching announcements');
+            };
+
+            xhr.send();
         }
 
         function populateAnnouncementSelect(announcements) {
@@ -227,31 +294,29 @@
             const offerQuantity = document.getElementById('offerQuantity').value;
 
             if (announcementId && offerQuantity > 0) {
-                fetch('../php/submit_offer.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ announcement_id: announcementId, quantity_offered: offerQuantity }),
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('offerMessage').textContent = 'Offer submitted successfully!';
-                    } else {
-                        document.getElementById('offerMessage').textContent = 'Error submitting offer.';
+                var xhr = new XMLHttpRequest();
+                xhr.open("POST", "../php/submit_offer.php", true);
+                xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4 && xhr.status === 200) {
+                        var data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            document.getElementById('offerMessage').textContent = 'Offer submitted successfully!';
+                        } else {
+                            document.getElementById('offerMessage').textContent = 'Error submitting offer.';
+                        }
                     }
-                });
+                };
+
+                xhr.onerror = function() {
+                    console.error('Error submitting offer');
+                };
+
+                xhr.send(JSON.stringify({ announcement_id: announcementId, quantity_offered: offerQuantity }));
             } else {
                 document.getElementById('offerMessage').textContent = 'Please select an announcement and specify a quantity.';
             }
-        }
-
-        function logout() {
-            fetch('../php/logout.php')
-                .then(() => {
-                    window.location.href = '../html/login.html';
-                });
         }
     </script>
 </head>
@@ -264,11 +329,11 @@
         <a href="#" onclick="logout()">Logout</a>
     </nav>
 
-    <!-- Request Section -->
+    
     <section id="requestSection" style="display: none;">
         <h2>Request an Item</h2>
 
-        <!-- Search and Category Selection -->
+        
         <div>
             <label for="itemSearch">Search for an item:</label>
             <input type="text" id="itemSearch" oninput="autocompleteItems()">
@@ -276,47 +341,47 @@
             <label for="categorySelect">or Select Category:</label>
             <select id="categorySelect" onchange="loadItemsByCategory()">
                 <option value="">Select Category</option>
-                <!-- Categories will be dynamically populated -->
+                
             </select>
 
             <label for="itemSelect">Select Item:</label>
             <select id="itemSelect">
-                <!-- Items will be dynamically populated -->
+                
             </select>
         </div>
 
-        <!-- People Involved -->
+        
         <div>
             <label for="peopleCount">Number of People Involved:</label>
             <input type="number" id="peopleCount" min="1">
         </div>
 
-        <!-- Submit Request -->
+        
         <button onclick="submitRequest()">Submit Request</button>
 
-        <!-- Request Status Message -->
+        
         <div id="requestMessage"></div>
 
-        <!-- List of Current Requests -->
+        
         <h3>My Current Requests</h3>
         <div id="currentRequests">
-            <!-- Current requests will be displayed here -->
+            
         </div>
 
-        <!-- List of Past Requests -->
+        
         <h3>My Past Requests</h3>
         <div id="pastRequests">
-            <!-- Past requests will be displayed here -->
+            
         </div>
     </section>
 
-    <!-- Offer Section -->
+    
     <section id="offerSection" style="display: none;">
         <h2>Offer a Product</h2>
         <div>
             <label for="announcementSelect">Select Announcement:</label>
             <select id="announcementSelect">
-                <!-- Announcements will be dynamically populated -->
+                
             </select>
         </div>
         <div>
@@ -327,11 +392,11 @@
         <div id="offerMessage"></div>
     </section>
 
-    <!-- Announcements Section -->
+    
     <section id="announcementsSection" style="display: none;">
         <h2>Announcements</h2>
         <div id="announcementsList">
-            <!-- Announcements will be dynamically populated here -->
+            
         </div>
     </section>
 

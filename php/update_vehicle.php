@@ -13,7 +13,6 @@ $volunteer_id = $_SESSION['user_id'];
 $data = json_decode(file_get_contents('php://input'), true);
 $vehicleName = $data['vehicleName'];
 
-// Database connection
 $host = 'localhost';
 $db = 'finaldb';
 $user = 'root';
@@ -23,7 +22,6 @@ try {
     $conn = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    // Update vehicle details
     $stmt = $conn->prepare("UPDATE vehicle SET vehicle_name = :vehicle_name WHERE volunteer_id = :volunteer_id");
     $stmt->execute([
         'vehicle_name' => $vehicleName,
